@@ -2,12 +2,18 @@
 
 #if defined(HAS_GYRO)
 #include "gyro.h"
-#include "mpu/mpu_mpu6050.h"
 #include "mixer.h"
 #include "logging.h"
 #include "elrs_eeprom.h" // only needed to satisfy PIO
 #include "config.h"
 
+#ifdef GYRO_DEVICE_MPU6050
+#include "mpu/mpu_mpu6050.h"
+#endif
+
+#ifdef GYRO_DEVICE_LSM6DXX
+#include "mpu/mpu_lsm6dXX.h"
+#endif
 
 extern boolean i2c_enabled;
 
@@ -21,14 +27,31 @@ static bool initialize()
     if (i2c_enabled)
     {
 #ifdef GYRO_DEVICE_MPU6050
-        mpuDev = new MPUDev_MPU6050();
-        if (mpuDev->initialize()) {
-            DBGLN("devGyro.init(): Detected MPU6050 Gyro");
-        } else {
-            DBGLN("devGyro.init(): MPU6050 Gyro Not Detected");
-            mpuDev=nullptr;
+        if (mpuDev == nullptr)
+        {
+            mpuDev = new MPUDev_MPU6050();
+            if (mpuDev->initialize()) {
+                DBGLN("devGyro.init(): Detected MPU6050 Gyro");
+            } else {
+                mpuDev = nullptr;
+            } 
         }
 #endif
+#ifdef GYRO_DEVICE_LSM6DXX
+        if (mpuDev == nullptr)
+        {
+            mpuDev = new MPUDev_LSM6DXX();
+            if (mpuDev->initialize()) {
+                DBGLN("devGyro.init(): Detected LSM6DXX Gyro");
+            } else {
+                mpuDev=nullptr;
+            }
+        }
+#endif
+    }
+
+    if (mpuDev==nullptr) {
+         DBGLN("devGyro.init(): Gyro Not Detected");
     }
 
     // Call Init even when mpuDev is null to disable other parts looking 

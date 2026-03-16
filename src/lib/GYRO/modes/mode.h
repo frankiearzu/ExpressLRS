@@ -9,6 +9,12 @@ class Mode_Base
         virtual void    printState();
         virtual uint16_t applyCorrection(uint8_t ch, gyro_output_channel_function_t channel_function, float command, bool inverted);
     protected:
+        gyro_mode_t  mode;
+        rx_config_gyro_fmode_t fm_settings;
         gyro_stick_priority_t stick_priority = STICK_PRIORITY_HALF;
+        
+        float input_rpy[3];
+        float stick_pri[3];
+        bool  ignore_input[3];
         float corr[3];
 };

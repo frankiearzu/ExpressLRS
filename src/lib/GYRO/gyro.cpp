@@ -15,8 +15,8 @@
 #include "logging.h"
 
 
-
-#define GYRO_PID_DEBUG_TIME 3000  // Time im Ms
+// Comment to Remove Debug of State
+#define GYRO_PID_DEBUG_TIME 5000  // Time im Ms
 
 #ifdef GYRO_PID_DEBUG_TIME
 unsigned long gyro_debug_time = 0;
@@ -128,6 +128,21 @@ void Gyro::start()
     roll_ch     = GetGyroInputChannelNumber(FN_IN_ROLL);
     pitch_ch    = GetGyroInputChannelNumber(FN_IN_PITCH);
     yaw_ch      = GetGyroInputChannelNumber(FN_IN_YAW);
+
+    if (roll_ch < 0) { // Try to find Elevons
+        //roll_ch     = GetGyroInputChannelNumber(FN_IN_ELEVON);
+        if (roll_ch >= 0 && pitch_ch < 0) {
+            pitch_ch = roll_ch;  // Elevator and Ail shares same channel
+        }
+    }
+
+    if (yaw_ch < 0) { // Try to find Vtail
+        //yaw_ch     = GetGyroInputChannelNumber(FN_IN_VTAIL);
+        if (yaw_ch >= 0 && pitch_ch < 0) {
+            pitch_ch = yaw_ch;  // Elevator and Rud shares same channel
+        }
+    }
+
 
     #ifdef GYRO_BOOT_JITTER
     boot_jitter_times = 0;

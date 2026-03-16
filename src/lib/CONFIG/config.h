@@ -4,7 +4,10 @@
 #include "elrs_eeprom.h"
 #include "options.h"
 #include "common.h"
+
+#if defined(HAS_GYRO)
 #include "gyro_types.h"
+#endif
 
 #if defined(PLATFORM_ESP32)
 #include <nvs_flash.h>

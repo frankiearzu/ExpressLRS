@@ -88,6 +88,7 @@
 // Gyro
 #define HAS_GYRO
 #define GYRO_DEVICE_MPU6050
+#define GYRO_DEVICE_LSM6DXX
 
 // VTX
 #define OPT_HAS_VTX_SPI (hardware_pin(HARDWARE_vtx_nss) != UNDEF_PIN)

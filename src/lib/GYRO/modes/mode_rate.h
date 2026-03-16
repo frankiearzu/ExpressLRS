@@ -20,11 +20,6 @@ class RateController: public Mode_Base
         void    configure_pids(float roll_limit, float pitch_limit, float yaw_limit, const rx_config_gyro_fmode_t *fm);
         void    configure_pid_gains(PID *pid, const rx_config_gyro_PID_t *pid_params, int8_t gain, float max, float min);
         
-        gyro_mode_t  mode;
-        rx_config_gyro_fmode_t fm_settings;
-        float input_rpy[3];
-        float stick_pri[3];
-        bool  ignore_input[3];
         PID   pid_roll, pid_pitch, pid_yaw;
         
 };

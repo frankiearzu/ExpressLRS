@@ -8,8 +8,10 @@
 #include "gyro_types.h"
 #include <math.h>
 #include "helper_3dmath.h"
+#include "mpu/mpu.h"
+#include "modes/mode.h"
 
-#define GYRO_CODE_VERSION   1
+#define GYRO_CODE_VERSION   2
 
 #define GYRO_US_MIN 988
 #define GYRO_US_MID 1500
@@ -28,8 +30,8 @@
 #define GYRO_BOOT_JITTER_TIMES 4
 #endif
 
-class MPU_Base;
-class Mode_Base;
+//class MPU_Base;
+//class Mode_Base;
 
 class Gyro
 {

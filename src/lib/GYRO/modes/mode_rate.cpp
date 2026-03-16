@@ -118,6 +118,7 @@ void RateController::calculate_stick_pri(float input_rpt[]) {
 void RateController::calculate_pid(float input_rpy[], float acc_rpy[], float ang_rpy[])
 {
     ignore_input[0] = ignore_input[1] = ignore_input[2] = false;
+    int8_t  rateMult = 4;   // 25% of full-Scale Accelerometer rate (TODO: Make it configurable)
 
     // Copy parameters to internal class variables
     for (int8_t axis = 0; axis < 3; axis++) {
@@ -127,9 +128,9 @@ void RateController::calculate_pid(float input_rpy[], float acc_rpy[], float ang
     calculate_stick_pri(input_rpy);
 
     // Desired angular rate is zero
-    pid_roll.calculate(0, acc_rpy[GYRO_AXIS_ROLL]);
-    pid_pitch.calculate(0, acc_rpy[GYRO_AXIS_PITCH]);
-    pid_yaw.calculate(0, -acc_rpy[GYRO_AXIS_YAW]);
+    pid_roll.calculate(0, acc_rpy[GYRO_AXIS_ROLL]  / rateMult);
+    pid_pitch.calculate(0, acc_rpy[GYRO_AXIS_PITCH] / rateMult);
+    pid_yaw.calculate(0, -(acc_rpy[GYRO_AXIS_YAW]/ rateMult));
 
     corr[GYRO_AXIS_ROLL]  = pid_roll.output  * stick_pri[GYRO_AXIS_ROLL]  * gyro.master_gain;
     corr[GYRO_AXIS_PITCH] = pid_pitch.output * stick_pri[GYRO_AXIS_PITCH]  * gyro.master_gain;

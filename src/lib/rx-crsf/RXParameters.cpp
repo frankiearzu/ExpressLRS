@@ -10,7 +10,6 @@
 
 #if defined(HAS_GYRO)
 #include "gyro.h"
-#include "mpu/mpu_mpu6050.h"
 extern void quickModelSetup(int wingType, int tailType);
 #endif
 
