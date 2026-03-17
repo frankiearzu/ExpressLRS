@@ -20,17 +20,17 @@ static void lsm6dxxConfig(MPU_Base *mpu)
 { 
     // Reset the device (wait 100ms before continuing config)
     mpu->writeRegisterBits(LSM6DXX_REG_CTRL3_C, LSM6DXX_MASK_CTRL3_C_RESET, BIT(0));
-    delayMicroseconds(100);
+    delay(100);
 
     // Configure data ready pulsed mode
     mpu->writeRegisterBits(LSM6DXX_REG_COUNTER_BDR1, LSM6DXX_MASK_COUNTER_BDR1, 
         LSM6DXX_VAL_COUNTER_BDR1_DDRY_PM);
     
     // Configure interrupt pin 1 for gyro data ready only
-    mpu->writeRegister(LSM6DXX_REG_INT1_CTRL, LSM6DXX_VAL_INT1_CTRL);
+    mpu->writeRegister(LSM6DXX_REG_INT1_CTRL, LSM6DXX_VAL_INT1_CTRL_ENABLE);
 
     // Disable interrupt pin 2
-    mpu->writeRegister(LSM6DXX_REG_INT2_CTRL, LSM6DXX_VAL_INT2_CTRL);
+    mpu->writeRegister(LSM6DXX_REG_INT2_CTRL, LSM6DXX_VAL_INT2_CTRL_DISABLE);
 
     // Configure the accelerometer
     mpu->writeRegister(LSM6DXX_REG_CTRL1_XL, 
@@ -44,11 +44,10 @@ static void lsm6dxxConfig(MPU_Base *mpu)
         (LSM6DXX_VAL_CTRL2_G_2000DPS << 2));  // 2000dps scale
 
     // Configure control register 3
-
     mpu->writeRegisterBits(LSM6DXX_REG_CTRL3_C, LSM6DXX_MASK_CTRL3_C, 
         (LSM6DXX_VAL_CTRL3_C_H_LACTIVE | // latch LSB/MSB during reads;
          LSM6DXX_VAL_CTRL3_C_PP_OD |     // set interrupt pins active high; set interrupt pins push/pull;
-         LSM6DXX_VAL_CTRL3_C_SIM |       //  set 4-wire SPI; 
+         LSM6DXX_VAL_CTRL3_C_SIM |       // set 4-wire SPI; 
          LSM6DXX_VAL_CTRL3_C_IF_INC));   // enable auto-increment burst reads
 
     // Configure control register 4
@@ -100,29 +99,20 @@ static bool lsm6dxxDetect(MPU_Base *mpu)
     return false;
 }
 
-static bool lsm6dxxAccRead(MPU_Base *mpu, int16_t* ax, int16_t* ay, int16_t* az)
+static bool lsm6dxxAccGyroRead(MPU_Base *mpu, int16_t* ax, int16_t* ay, int16_t* az, int16_t* gx, int16_t* gy, int16_t* gz)
 {
-    uint8_t data[6];
-    const bool ack = mpu->readRegister(LSM6DXX_REG_OUTX_L_A, data, 6);
-    if (!ack) {
-        return false;
-    }
-    *ax = data[0] | static_cast<uint16_t>(data[1] << 8);
-    *ay = data[2] | static_cast<uint16_t>(data[3] << 8);
-    *az = data[3] | static_cast<uint16_t>(data[5] << 8);
-    return true; 
-}
-
-bool lsm6dxxGyroRead(MPU_Base *mpu, int16_t* gx, int16_t* gy, int16_t* gz)
-{
-    uint8_t data[6];
-    const bool ack = mpu->readRegister(LSM6DXX_REG_OUTX_L_G, data, 6);
+    uint8_t data[12];
+    const bool ack = mpu->readRegister(LSM6DXX_REG_OUTX_L_G, data, 12);
     if (!ack) {
         return false;
     }
     *gx = data[0] | static_cast<uint16_t>(data[1] << 8);
     *gy = data[2] | static_cast<uint16_t>(data[3] << 8);
-    *gz = data[3] | static_cast<uint16_t>(data[5] << 8);
+    *gz = data[4] | static_cast<uint16_t>(data[5] << 8);
+
+    *ax = data[6] | static_cast<uint16_t>(data[7] << 8);
+    *ay = data[8] | static_cast<uint16_t>(data[9] << 8);
+    *az = data[10] | static_cast<uint16_t>(data[11] << 8);
     return true;
 }
 
@@ -142,8 +132,8 @@ bool MPUDev_LSM6DXX::initialize() {
 
     DBGLN("LSM6DXX found!!");
 
-    accScaleCode = LSM6DXX_VAL_CTRL1_XL_8G; // Acceleation 2G
-    accScale1G =   32768 / 8; //    16384.0;  
+    accScaleCode = LSM6DXX_VAL_CTRL1_XL_2G; // Acceleation 2G
+    accScale1G =   16384.0;  
 
     gyroScaleCode = LSM6DXX_VAL_CTRL2_G_2000DPS;  
     gyroScaleRad = 2000.0 / 32768.0 / 180 * PI;  //   multiply adc by this to get rad°/s
@@ -229,10 +219,9 @@ bool MPUDev_LSM6DXX::read(float accel_rpy[], float angle_rpy[]) {
     return true;
 }
 
-void MPUDev_LSM6DXX::rawRead(int16_t *ax, int16_t *ay, int16_t *az, int16_t *gx, int16_t *gy, int16_t *gz) 
+bool MPUDev_LSM6DXX::rawRead(int16_t *ax, int16_t *ay, int16_t *az, int16_t *gx, int16_t *gy, int16_t *gz) 
 {
-    lsm6dxxAccRead(this,   ax, ay, az);
-    lsm6dxxGyroRead(this,  gx, gy, gz);
+    return lsm6dxxAccGyroRead(this, ax, ay, az, gx, gy, gz);
 }
 
 #endif

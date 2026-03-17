@@ -38,14 +38,15 @@ bool MPU_Base::initialize() {
 
 bool MPU_Base::readRegister(uint8_t reg, uint8_t *data, size_t size)
 {
+    size_t r = 0;
     Wire.beginTransmission(m_address);
     Wire.write(reg);
     if (Wire.endTransmission() == 0)
     {
         Wire.requestFrom(m_address, size);
-        Wire.readBytes(data, size);
+        r = Wire.readBytes(data, size);
     }
-    return true;
+    return r == size;
 }
 
 void MPU_Base::writeRegister(uint8_t reg, uint8_t value)
@@ -55,6 +56,7 @@ void MPU_Base::writeRegister(uint8_t reg, uint8_t value)
     Wire.write(reg);
     Wire.write(&data, 1);
     Wire.endTransmission();
+    //return (Wire.endTransmission() == 0);
 }
 
 void MPU_Base::writeRegisterBits(uint8_t registerID, uint8_t mask, uint8_t value)
@@ -350,22 +352,28 @@ bool MPU_Base::CalibrateGyro(int8_t loops, rx_config_gyro_calibration_t *offsets
 
     int16_t ax,ay,az ;
     int16_t gx,gy,gz ;
-	int32_t axAccum, ayAccum, azAccum , axMin , axMax , ayMin , ayMax , azMin , azMax;
-	axAccum = ayAccum = azAccum = 0;
+
     int32_t gxAccum, gyAccum, gzAccum , gxMin , gxMax , gyMin , gyMax , gzMin , gzMax;
 	gxAccum = gyAccum = gzAccum = 0;
-    axMin = ayMin = azMin = gxMin = gyMin = gzMin = 60000;
-    axMax = ayMax = azMax = gxMax = gyMax = gzMax = -60000;  
+    gxMin = gyMin = gzMin = 60000;
+    gxMax = gyMax = gzMax = -60000;  
+
+    int16_t errors = 0;
 
     DBGLN ("Stating Gyro Calibration..");
 
 	for (int inx = 0; inx < ACCEL_NUM_AVG_SAMPLES; inx++){
         DBG(".");
         delayMicroseconds(2000); // take 8 msec with dlpf = 20 ; 1900us when BW = 188
-        rawRead(&ax,&ay,&az,&gx,&gy,&gz);
+        if (!rawRead(&ax,&ay,&az,&gx,&gy,&gz)) {
+            errors++;
+            continue;
+        }
+
         gxAccum += (int32_t) gx;
         gyAccum += (int32_t) gy;
         gzAccum += (int32_t) gz;
+
         if (gx < gxMin) gxMin = gx;
         if (gy < gyMin) gyMin = gy;
         if (gz < gzMin) gzMin = gz;
@@ -373,23 +381,34 @@ bool MPU_Base::CalibrateGyro(int8_t loops, rx_config_gyro_calibration_t *offsets
         if (gy > gyMax) gyMax = gy;
         if (gz > gzMax) gzMax = gz;
     }
+
+    DBGLN ("\nGyro Calibration completed..");
+
+    DBGLN ("Calibration: gyro differences: x=%d (%d/%d) y=%d (%d/%d) z=%d (%d/%d)", 
+                 gxMax - gxMin, gxMax, gxMin,
+                 gxMax - gxMin, gxMax, gxMin,
+                 gzMax - gzMin, gzMax, gzMin);
+
     #define MAX_GYRO_DIFF 200
     if (((gxMax - gxMin) > MAX_GYRO_DIFF) or ((gyMax - gyMin) > MAX_GYRO_DIFF) or ((gzMax - gzMin) > MAX_GYRO_DIFF)) {
-        DBGLN ("Error in gyro calibration: to much variations in the gyro rates values");
+        DBGLN ("Error in IMU calibration: to much variations in the gyro values");
         return false;
     }
 
-    DBGLN ("Gyro Calibration completed..");
+    if (errors > 10) {
+        DBGLN("Too many read errors during calibration");
+        return false;
+    }
 
-    gxAccum /= (ACCEL_NUM_AVG_SAMPLES);
-	gyAccum /= (ACCEL_NUM_AVG_SAMPLES);
-	gzAccum /= (ACCEL_NUM_AVG_SAMPLES);
+    gxAccum /= (ACCEL_NUM_AVG_SAMPLES - errors);
+	gyAccum /= (ACCEL_NUM_AVG_SAMPLES - errors);
+	gzAccum /= (ACCEL_NUM_AVG_SAMPLES - errors);
    
     offsets->x = (int16_t)(gxAccum);
 	offsets->y = (int16_t)(gyAccum);
 	offsets->z = (int16_t)(gzAccum);
  
-    DBGLN("LSM6DXX Gyr Offs:  x=%d,y=%d,z=%d",offsets->x, offsets->y,offsets->z);
+    DBGLN("Gyr Offs:  x=%d,y=%d,z=%d",offsets->x, offsets->y,offsets->z);
 
     return true;
 }
@@ -400,21 +419,27 @@ bool MPU_Base::CalibrateAccel(int8_t loops, rx_config_gyro_calibration_t *offset
     int16_t gx,gy,gz ;
 	int32_t axAccum, ayAccum, azAccum , axMin , axMax , ayMin , ayMax , azMin , azMax;
 	axAccum = ayAccum = azAccum = 0;
-    int32_t gxAccum, gyAccum, gzAccum , gxMin , gxMax , gyMin , gyMax , gzMin , gzMax;
-	gxAccum = gyAccum = gzAccum = 0;
-    axMin = ayMin = azMin = gxMin = gyMin = gzMin = 60000;
-    axMax = ayMax = azMax = gxMax = gyMax = gzMax = -60000;  
+    int16_t errors = 0;
+   
+    axMin = ayMin = azMin  = 60000;
+    axMax = ayMax = azMax  = -60000;  
     
     DBGLN ("Stating Accelerometer Calibration..");
+
     for (int inx = 0; inx < ACCEL_NUM_AVG_SAMPLES; inx++){
         DBG(".");
         delayMicroseconds(2000); // take 8 msec with dlpf = 20 ; 1900us when BW = 188
         
-        rawRead(&ax,&ay,&az,&gx,&gy,&gz);
+        if (!rawRead(&ax,&ay,&az,&gx,&gy,&gz)) {
+            errors++; continue;
+        }
+        // Remove Gravity
+        az -= accScale1G;
 
         axAccum += (int32_t) ax;
         ayAccum += (int32_t) ay;
         azAccum += (int32_t) az;
+
         if (ax < axMin) axMin = ax;
         if (ay < ayMin) ayMin = ay;
         if (az < azMin) azMin = az;
@@ -423,6 +448,14 @@ bool MPU_Base::CalibrateAccel(int8_t loops, rx_config_gyro_calibration_t *offset
         if (az > azMax) azMax = az;        
     }
 
+    DBGLN ("\nAccelerometer Calibration completed..");
+
+    DBGLN ("Calibration: acceleration differences: x=%d (%d/%d) y=%d (%d/%d) z=%d (%d/%d)", 
+                 axMax - axMin, axMax, axMin,
+                 axMax - axMin, axMax, axMin,
+                 azMax - azMin, azMax, azMin);
+
+
     // here we know the Acc but still will reject the measurement if noise is to big
     #define MAX_ACC_DIFF 500
     if (((axMax - axMin) > MAX_ACC_DIFF) or ((ayMax - ayMin) > MAX_ACC_DIFF) or ((azMax - azMin) > MAX_ACC_DIFF)) {
@@ -430,18 +463,21 @@ bool MPU_Base::CalibrateAccel(int8_t loops, rx_config_gyro_calibration_t *offset
         return false;
     }
 
-    DBGLN ("Accelerometer Calibration completed..");
+    if (errors > 10) {
+        DBGLN("Too many read errors during calibration");
+        return false;
+    }
 
-    axAccum /= (ACCEL_NUM_AVG_SAMPLES);
-    ayAccum /= (ACCEL_NUM_AVG_SAMPLES);
-    azAccum /= (ACCEL_NUM_AVG_SAMPLES);
+    axAccum /= (ACCEL_NUM_AVG_SAMPLES - errors);
+    ayAccum /= (ACCEL_NUM_AVG_SAMPLES - errors);
+    azAccum /= (ACCEL_NUM_AVG_SAMPLES - errors);
 
     // we store the values
-    offsets->x = (int16_t)(gxAccum);
-	offsets->y = (int16_t)(gyAccum);
-	offsets->z = (int16_t)(gzAccum);
+    offsets->x = (int16_t)(axAccum);
+	offsets->y = (int16_t)(ayAccum);
+	offsets->z = (int16_t)(azAccum);
 
-    DBGLN("LSM6DXX Acc Offs:  x=%d,y=%d,z=%d",offsets->x, offsets->y,offsets->z);
+    DBGLN("Acc Offs:  x=%d,y=%d,z=%d",offsets->x, offsets->y,offsets->z);
 
     return true;
 }

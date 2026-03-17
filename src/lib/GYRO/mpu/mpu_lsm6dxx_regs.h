@@ -58,8 +58,9 @@ typedef enum {
 // LSM6DXX register configuration values
 typedef enum {
     LSM6DXX_VAL_COUNTER_BDR1_DDRY_PM = BIT(7),// (bit 7) enable data ready pulsed mode
-    LSM6DXX_VAL_INT1_CTRL = 0x02,             // enable gyro data ready interrupt pin 1
-    LSM6DXX_VAL_INT2_CTRL = 0x00,             // disable gyro data ready interrupt pin 2
+    LSM6DXX_VAL_INT1_CTRL_ENABLE  = 0x02,     // enable gyro data ready interrupt pin 1
+    LSM6DXX_VAL_INT2_CTRL_DISABLE = 0x00,     // disable gyro data ready interrupt pin 2
+    
     LSM6DXX_VAL_CTRL1_XL_ODR833 = 0x07,       // accelerometer 833hz output data rate (gyro/8)
     LSM6DXX_VAL_CTRL1_XL_ODR1667 = 0x08,      // accelerometer 1666hz output data rate (gyro/4)
     LSM6DXX_VAL_CTRL1_XL_ODR3332 = 0x09,      // accelerometer 3332hz output data rate (gyro/2)
