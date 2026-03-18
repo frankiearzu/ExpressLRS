@@ -1,6 +1,16 @@
 #pragma once
 #include <stdint.h>
 
+typedef union {
+    struct {
+        uint64_t max:12,
+                 min:12,
+                 mid:12,
+                 unused: 28;
+    } val;
+    uint64_t raw;
+} rx_config_pwm_limits_t;
+
 typedef enum {
     GYRO_STATUS_OFF,
     GYRO_STATUS_NOT_DETECTED,
@@ -8,6 +18,7 @@ typedef enum {
     GYRO_STATUS_OK
 } gyro_status_t;
 
+/*
 typedef enum
 {
     GYRO_EVENT_NONE,
@@ -16,19 +27,33 @@ typedef enum
     GYRO_EVENT_VERTICAL_CALIBRATE,
     GYRO_EVENT_SUBTRIMS
 } gyro_event_t;
+*/
 
-#define GYRO_MAX_FMODES 6 
+typedef enum { // values are important
+    GYRO_GAIN_FACTOR_0_5X,
+    GYRO_GAIN_FACTOR_1X,
+    GYRO_GAIN_FACTOR_1_5X, 
+    GYRO_GAIN_FACTOR_2X,
+} gyro_gain_factor_t;
 
 typedef enum
 {
     GYRO_MODE_OFF = 0,
     GYRO_MODE_RATE,
-    GYRO_MODE_SAFE,
+    GYRO_MODE_ENVELOPE,
     GYRO_MODE_LEVEL,
     GYRO_MODE_LAUNCH,
     GYRO_MODE_HOVER,
+    GYRO_MODE_FUTURE1,
+    GYRO_MODE_FUTURE2,
+    GYRO_MODE_FUTURE3,
+    GYRO_MODE_FUTURE4,
+    GYRO_MODE_FUTURE5,
+    GYRO_MODE_LAST_ACTIVE = GYRO_MODE_HOVER,
+    GYRO_MODE_MAX = GYRO_MODE_FUTURE5
 } gyro_mode_t;
 
+/*
 typedef enum {
     FN_IN_NONE,
     FN_IN_ROLL,
@@ -37,6 +62,16 @@ typedef enum {
     FN_IN_GYRO_MODE,
     FN_IN_GYRO_GAIN
 } gyro_input_channel_function_t;
+*/
+
+typedef enum {
+    GYRO_PID_GROUP_RATE,
+    GYRO_PID_GROUP_ANGLE,
+    GYRO_PID_GROUP_FUTURE1,
+    GYRO_PID_GROUP_FUTURE2,
+    GYRO_PID_GROUP_LAST_ACTIVE = GYRO_PID_GROUP_ANGLE,
+    GYRO_PID_GROUP_MAX = GYRO_PID_GROUP_FUTURE2
+} gyro_pidgroup_t;
 
 
 #define GYRO_N_AXES 3
@@ -62,14 +97,17 @@ typedef enum {
     FN_ELEVON_L,
     FN_ELEVON_R,
     FN_VTAIL_L,
-    FN_VTAIL_R
+    FN_VTAIL_R,
+    FN_GYRO_MODE,
+    FN_GYRO_GAIN
 } gyro_output_channel_function_t;
 
 
-typedef enum { // values are important
-    STICK_PRIORITY_FULL=0, 
-    STICK_PRIORITY_HALF=1, 
-    STICK_PRIORITY_QUARTER=2 
+typedef enum { 
+    STICK_PRIORITY_100  =0,
+    STICK_PRIORITY_75   =1, 
+    STICK_PRIORITY_50   =2, 
+    STICK_PRIORITY_25   =3 
 } gyro_stick_priority_t;
 
 typedef enum { 
@@ -79,13 +117,21 @@ typedef enum {
     GYRO_LEARN_LIMIT_DONE 
 } gyro_learn_state_t;
 
+typedef enum { 
+    GYRO_UI_USE_RATE,
+    GYRO_UI_STICK_PRIORITY,
+    GYRO_UI_TRIMS, 
+    GYRO_UI_GAINS, 
+    GYRO_UI_MAX_ANGLE
+} gyro_ui_vibility_t;
+
 
 
 typedef struct __attribute__((packed)) {
     uint8_t p;
     uint8_t i;
     uint8_t d;
-    uint8_t gain;
+    uint8_t gain; // Deprecated
 } rx_config_gyro_PID_t;
 
 /*
@@ -98,33 +144,30 @@ typedef struct {
 
 typedef union __attribute__((packed)) {
     struct {
-        uint32_t input_mode:5,
-                 output_mode:5,
-                 inverted:1,     // invert gyro output
-                 auto_subtrim:1, // Set subtrim at first connection
-                 unused:20;
+        uint16_t output_mode:5,  // Max 32 Modes
+                 master:1,       // master channel?
+                 inverted:1,     // invert gyro output?
+                 unused:9;
     } val;
     uint32_t raw;
 } rx_config_gyro_channel_t;
 
 typedef union __attribute__((packed)) {
     struct {
-        uint64_t 
-                 angleMaxEnable:1,
-                 trimEnable:1,
-                 gainEnable:1,
+        uint64_t gainRoll:8,
+                 gainPitch:8,
+                 gainYaw:8,
 
-                 angleMaxPitch:8,
-                 angleMaxRoll:8,
+                 maxAnglePitch:7, // Max 90
+                 maxAngleRoll:7,
 
-                 trimPitch:8,
-                 trimRoll:8,
+                 trimPitch:5, // Max 32
+                 trimRoll:5,
 
-                 gainRoll:7,
-                 gainPitch:7,
-                 gainYaw:7,
-                 
-                 unused:1;
+                 useRate:1,
+                 stickPri:2,  // Max 4
+
+                 unused:13;
     } val;
     uint64_t raw;
 } rx_config_gyro_fmode_t;
@@ -148,3 +191,22 @@ typedef struct __attribute__((packed)) {
 } rx_config_gyro_calibration_t;
 
 constexpr uint8_t GYRO_MAX_CHANNELS = 16;
+constexpr uint8_t GYRO_CONFIG_VERSION = 2;
+
+typedef struct __attribute__((packed)) {
+    uint8_t  configVersion;
+    uint16_t orientationH:3,
+             orientationV:3,
+             gyroEnabled:1,
+             gainFactor:3, // 0.5, 1, 1.5, 2
+             unused_a:6;  // More global settings
+ 
+    rx_config_gyro_calibration_t accelCalibration;
+    rx_config_gyro_calibration_t gyroCalibration;
+    rx_config_pwm_limits_t pwmLimits[GYRO_MAX_CHANNELS];
+    rx_config_gyro_channel_t gyroChannels[GYRO_MAX_CHANNELS];
+
+    rx_config_gyro_mode_pos_t gyroModeSwitch; // Gyro functions for switch positions
+    rx_config_gyro_PID_t   gyroPIDs[GYRO_PID_GROUP_MAX][GYRO_N_AXES]; // PID gains for each axis
+    rx_config_gyro_fmode_t gyroFModes[GYRO_MODE_MAX]; //Mode Description
+} rx_config_gyro_t;

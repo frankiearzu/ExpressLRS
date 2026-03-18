@@ -116,6 +116,13 @@ static bool lsm6dxxAccGyroRead(MPU_Base *mpu, int16_t* ax, int16_t* ay, int16_t*
     return true;
 }
 
+const char * MPUDev_LSM6DXX::GetMPUName() {
+    switch (lsm6dID) {
+        case LSM6DSO_CHIP_ID: return "LSM6DSO";
+        case LSM6DSL_CHIP_ID: return "LSM6DSL";
+    } 
+    return "LSM6Dxx";
+}
 
 bool MPUDev_LSM6DXX::initialize() {
     MPU_Base::initialize();

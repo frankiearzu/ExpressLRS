@@ -10,6 +10,7 @@ class MPUDev_LSM6DXX : public MPU_Base
 {
     using MPU_Base::MPU_Base;
     public:
+        const char *GetMPUName();
         bool initialize();
         void start();
         bool read(float accel_rpy[], float angle_rpy[]);

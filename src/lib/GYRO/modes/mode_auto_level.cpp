@@ -4,7 +4,7 @@
 #include "config.h"
 #include "crsf_protocol.h"
 
-#include "mode_level.h"
+#include "mode_auto_level.h"
 #include "mixer.h"
 #include "pid.h"
 #include "gyro_types.h"
@@ -29,8 +29,8 @@ void LevelController::initialize(gyro_mode_t mode)
 
     fm_angle_settings.raw =  config.GetGyroFMode(mode)->raw; // Default settings for ALL
 
-    const rx_config_gyro_PID_t *roll_pid_params     = config.GetGyroPID(GYRO_AXIS_ROLL);
-    const rx_config_gyro_PID_t *pitch_pid_params    = config.GetGyroPID(GYRO_AXIS_PITCH);
+    const rx_config_gyro_PID_t *roll_pid_params     = config.GetGyroPID(GYRO_PID_GROUP_ANGLE, GYRO_AXIS_ROLL);
+    const rx_config_gyro_PID_t *pitch_pid_params    = config.GetGyroPID(GYRO_PID_GROUP_ANGLE, GYRO_AXIS_PITCH);
    
     float roll_limit = 1.0;
     float pitch_limit = 1.0;
@@ -54,8 +54,8 @@ void LevelController::calculate_pid(float input_rpy[], float acc_rpy[], float an
 
     // Angle Demand
     // The stick tell the percentage of the max angle where we want the plane to be
-    float setpoint_pitch =  input_rpy[GYRO_AXIS_PITCH] * degToRad(fm_angle_settings.val.angleMaxPitch);
-    float setpoint_roll  =  input_rpy[GYRO_AXIS_ROLL]  * degToRad(fm_angle_settings.val.angleMaxRoll);
+    float setpoint_pitch =  input_rpy[GYRO_AXIS_PITCH] * degToRad(fm_angle_settings.val.maxAnglePitch);
+    float setpoint_roll  =  input_rpy[GYRO_AXIS_ROLL]  * degToRad(fm_angle_settings.val.maxAngleRoll);
 
     pid_angle_pitch.calculate(setpoint_pitch,pitch_angle);
     pid_angle_roll.calculate(setpoint_roll,roll_angle);
@@ -65,9 +65,7 @@ void LevelController::calculate_pid(float input_rpy[], float acc_rpy[], float an
 
     // Add angle correction to rate corrections ajusted to angle Gains
     corr[GYRO_AXIS_ROLL]  += pid_angle_roll.output;
-    corr[GYRO_AXIS_PITCH] += pid_angle_pitch.output;
-
-    
+    corr[GYRO_AXIS_PITCH] += pid_angle_pitch.output;   
 }
 
 void LevelController::printState() {

@@ -8,6 +8,7 @@ class MPU_Base
     public:
         static uint8_t m_address;
 
+        virtual const char * GetMPUName();
         virtual bool initialize();
         
         virtual void start();
@@ -64,6 +65,8 @@ class MPU_Base
 
         void GetYawPitchRoll(float *data, Quaternion *q, VectorFloat *gravity);
         uint8_t GetGravity(VectorFloat *v, Quaternion *q);
+
+        
 
         #ifdef DEBUG_GYRO_STATS
         void print_gyro_stats();

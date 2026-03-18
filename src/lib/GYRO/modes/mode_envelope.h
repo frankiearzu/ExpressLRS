@@ -3,7 +3,7 @@
 #include "gyro.h"
 #include "mode_rate.h"
 
-class SafeController: public RateController
+class AngEnvelopeController: public RateController
 {
     public:
         void    initialize(gyro_mode_t mode);

@@ -7,8 +7,8 @@
 #include "mixer.h"
 //#include "device.h"
 #include "mpu/mpu.h"
-#include "modes/mode_safe.h"
-#include "modes/mode_level.h"
+#include "modes/mode_envelope.h"
+#include "modes/mode_auto_level.h"
 #include "modes/mode_hover.h"
 #include "modes/mode_rate.h"
 #include "CRSFRouter.h"
@@ -30,17 +30,17 @@ static uint8_t stick_subtrim_cycles = 0;
 static rx_config_pwm_limits_t temp_limits[PWM_MAX_CHANNELS] = {};
 
 // Must match mixer.h: gyro_input_channel_function_t
-static const char* STR_gyroInputChannelMode[] = {"None","Roll","Pitch","Yaw","Mode","Gain"};
+//static const char* STR_gyroInputChannelMode[] = {"None","Roll","Pitch","Yaw","Mode","Gain"};
 // Must match mixer.h: gyro_output_channel_function_t
-static const char* STR_gyroOutputChannelMode[] = {"None","Aileron","Elevator","Rudder","Elevon","V Tail"};
+//static const char* STR_gyroOutputChannelMode[] = {"None","Aileron","Elevator","Rudder","Elevon","V Tail"};
 // Must match gyro.h gyro_mode_t
 static const char* STR_gyroMode[] = {"Off","Rate","SAFE","Level","Launch","Hover"};
 // Must match gyro_axis_t
 static const char* STR_gyroAxis[] = {"Roll","Pitch","Yaw"}; 
 
-volatile gyro_event_t gyro_event = GYRO_EVENT_NONE;
+//volatile gyro_event_t gyro_event = GYRO_EVENT_NONE;
 
-static Mode_Base*  mode_controllers [6] = { };
+static Mode_Base*  mode_controllers [GYRO_MODE_LAST_ACTIVE+1] = { };
 
 #ifdef GYRO_BOOT_JITTER
 static uint8_t boot_jitter_times = 0;
@@ -67,14 +67,23 @@ static bool boot_jitter(uint16_t *us)
 /**
  * Return the first channel matching input `mode` or -1 if not found.
 */
-static int8_t GetGyroInputChannelNumber(gyro_input_channel_function_t mode)
+static int8_t GetGyroFunChannelNumber(gyro_output_channel_function_t mode, gyro_output_channel_function_t mode2 = (gyro_output_channel_function_t) 100)
 {
+    int8_t result = -1;
     for (int8_t i = 0; i < GYRO_MAX_CHANNELS; i++) {
         auto info =  config.GetGyroChannel(i);
-        if (info->val.input_mode == mode)
-            return i;
+        if (info->val.output_mode == mode ||
+            info->val.output_mode == mode2) {
+            if (result==-1) {
+                result = i;  // Minumun Ch that is that mode, check if it is the master
+            }
+            if (info->val.master) {
+                // Found the Master, no need to look for more
+                return i;
+            }
+        }
     }
-    return -1;
+    return result;
 }
 
 static float channel_us(uint8_t ch)
@@ -88,6 +97,7 @@ static float channel_command(uint8_t ch)
 {
     const rx_config_pwm_t *chConfig = config.GetPwmChannel(ch);
     const unsigned crsfVal = ChannelData[chConfig->val.inputChannel];
+    if (crsfVal==CRSF_CHANNEL_VALUE_UNSET) return 0;
     uint16_t us = CRSF_to_US(crsfVal);
     return us_command_to_float(ch, us);
 }
@@ -102,12 +112,12 @@ void Gyro::init(MPU_Base *mpu)
     gyro_mode       = GYRO_MODE_OFF;
     learn_state     = GYRO_LEARN_OFF;
 
-    mode_controllers[GYRO_MODE_OFF]     = nullptr;
-    mode_controllers[GYRO_MODE_RATE]    = new RateController();
-    mode_controllers[GYRO_MODE_LEVEL]   = new LevelController();
-    mode_controllers[GYRO_MODE_LAUNCH]  = mode_controllers[GYRO_MODE_LEVEL];
-    mode_controllers[GYRO_MODE_SAFE]    = new SafeController();
-    mode_controllers[GYRO_MODE_HOVER]   = new HoverController();
+    mode_controllers[GYRO_MODE_OFF]      = nullptr;
+    mode_controllers[GYRO_MODE_RATE]     = new RateController();
+    mode_controllers[GYRO_MODE_LEVEL]    = new LevelController();
+    mode_controllers[GYRO_MODE_LAUNCH]   = mode_controllers[GYRO_MODE_LEVEL];
+    mode_controllers[GYRO_MODE_ENVELOPE] = new AngEnvelopeController();
+    mode_controllers[GYRO_MODE_HOVER]    = new HoverController();
 }
 
 void Gyro::start()
@@ -122,22 +132,31 @@ void Gyro::start()
     mpuDev->start();
     initialized = mpuDev->isRunning();
 
+    gain_factor = 1.0;
+    gyro_gain_factor_t gainFactorEnum = config.GetGyroGainFactor();
+    switch (gainFactorEnum) {
+        case GYRO_GAIN_FACTOR_0_5X: gain_factor = 0.5; break;
+        case GYRO_GAIN_FACTOR_1X: gain_factor = 1.0; break;
+        case GYRO_GAIN_FACTOR_1_5X: gain_factor = 1.5; break;
+        case GYRO_GAIN_FACTOR_2X: gain_factor = 2; break;
+    } 
+
     mode_controller = nullptr;
-    mode_ch     = GetGyroInputChannelNumber(FN_IN_GYRO_MODE);
-    gain_ch     = GetGyroInputChannelNumber(FN_IN_GYRO_GAIN);
-    roll_ch     = GetGyroInputChannelNumber(FN_IN_ROLL);
-    pitch_ch    = GetGyroInputChannelNumber(FN_IN_PITCH);
-    yaw_ch      = GetGyroInputChannelNumber(FN_IN_YAW);
+    mode_ch     = GetGyroFunChannelNumber(FN_GYRO_MODE);
+    gain_ch     = GetGyroFunChannelNumber(FN_GYRO_GAIN);
+    roll_ch     = GetGyroFunChannelNumber(FN_AILERON);
+    pitch_ch    = GetGyroFunChannelNumber(FN_ELEVATOR);
+    yaw_ch      = GetGyroFunChannelNumber(FN_RUDDER);
 
     if (roll_ch < 0) { // Try to find Elevons
-        //roll_ch     = GetGyroInputChannelNumber(FN_IN_ELEVON);
+        roll_ch     = GetGyroFunChannelNumber(FN_ELEVON_L, FN_ELEVON_R);
         if (roll_ch >= 0 && pitch_ch < 0) {
             pitch_ch = roll_ch;  // Elevator and Ail shares same channel
         }
     }
 
     if (yaw_ch < 0) { // Try to find Vtail
-        //yaw_ch     = GetGyroInputChannelNumber(FN_IN_VTAIL);
+        yaw_ch     = GetGyroFunChannelNumber(FN_VTAIL_L, FN_VTAIL_R);
         if (yaw_ch >= 0 && pitch_ch < 0) {
             pitch_ch = yaw_ch;  // Elevator and Rud shares same channel
         }
@@ -148,6 +167,13 @@ void Gyro::start()
     boot_jitter_times = 0;
     boot_jitter_time = 0;
     #endif
+
+    DBGLN("Gyro:Start() END");
+}
+
+const char * Gyro::getMPUName() {
+    if (mpuDev == nullptr) return "--";
+    return mpuDev->GetMPUName();
 }
 
 gyro_status_t Gyro::getStatus() 
@@ -206,7 +232,7 @@ void Gyro::pause()
 void Gyro::switch_mode(gyro_mode_t mode)
 {
     DBGLN("Gyro: Switching mode=[%s]", STR_gyroMode[mode]);
-    DBGLN("Gyro: Master Gain=[%f]", master_gain);
+    DBGLN("Gyro: Master Gain=[%f] * Gain_Factor=[%f] = %f", master_gain, gain_factor, master_gain * gain_factor);
 
     gyro_mode = mode;
     mode_controller = mode_controllers[mode];

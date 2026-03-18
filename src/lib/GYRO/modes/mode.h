@@ -11,7 +11,7 @@ class Mode_Base
     protected:
         gyro_mode_t  mode;
         rx_config_gyro_fmode_t fm_settings;
-        gyro_stick_priority_t stick_priority = STICK_PRIORITY_HALF;
+        gyro_stick_priority_t stick_priority = STICK_PRIORITY_50;
         
         float input_rpy[3];
         float stick_pri[3];

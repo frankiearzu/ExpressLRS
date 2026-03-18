@@ -45,25 +45,35 @@ void RateController::configure_pid_gains(PID *pid, const rx_config_gyro_PID_t *p
 }
 
 void  RateController::applyFModeSettings(gyro_mode_t fm) {
-    fm_settings.raw =  config.GetGyroFMode(GYRO_MODE_OFF)->raw; // Default settings for ALL
+    fm_settings.raw =  config.GetGyroFMode(GYRO_MODE_RATE)->raw; // Default settings for ALL
 
     auto rate_settings = config.GetGyroFMode(fm); // Get settings for Specific flight Mode
 
-    if (rate_settings->val.angleMaxEnable) { // Override
-        fm_settings.val.angleMaxPitch = rate_settings->val.angleMaxPitch;
-        fm_settings.val.angleMaxRoll = rate_settings->val.angleMaxRoll;
+    if (fm == GYRO_MODE_LEVEL || fm == GYRO_MODE_ENVELOPE) { // Override
+        fm_settings.val.maxAnglePitch = rate_settings->val.maxAnglePitch;
+        fm_settings.val.maxAngleRoll = rate_settings->val.maxAngleRoll;
     } else {
-         fm_settings.val.angleMaxPitch=0;
-         fm_settings.val.angleMaxRoll=0;
+        fm_settings.val.maxAnglePitch=0;
+        fm_settings.val.maxAngleRoll=0;
     }
 
-    if (rate_settings->val.trimEnable) { // Add to Defaults, that is Level Flight
-        fm_settings.val.trimPitch += (int8_t) rate_settings->val.trimPitch;
-        fm_settings.val.trimRoll += (int8_t) rate_settings->val.trimRoll;
+    if (fm == GYRO_MODE_LEVEL || fm == GYRO_MODE_LAUNCH) { 
+        fm_settings.val.trimPitch = (int8_t) rate_settings->val.trimPitch;
+        fm_settings.val.trimRoll  = (int8_t) rate_settings->val.trimRoll;
+    } else {
+        fm_settings.val.trimPitch=0;
+        fm_settings.val.trimRoll=0;
     }
 
-    if (fm_settings.val.angleMaxPitch+fm_settings.val.angleMaxRoll > 0) {
-        DBGLN("Angle Limits: Pitch=%d Roll=%d",(int8_t)fm_settings.val.angleMaxPitch, (int8_t)fm_settings.val.angleMaxRoll);
+     if (fm != GYRO_MODE_RATE) { 
+        fm_settings.val.useRate = (int8_t) rate_settings->val.useRate;
+     } else {
+        fm_settings.val.useRate = true;
+     }
+
+
+    if (fm_settings.val.maxAnglePitch+fm_settings.val.maxAngleRoll > 0) {
+        DBGLN("Angle Limits: Pitch=%d Roll=%d",(int8_t)fm_settings.val.maxAnglePitch, (int8_t)fm_settings.val.maxAngleRoll);
     }
 
     if (fm_settings.val.trimPitch+fm_settings.val.trimRoll != 0) {
@@ -92,9 +102,9 @@ void RateController::initialize(gyro_mode_t mode)
 
     applyFModeSettings(mode);
 
-    const rx_config_gyro_PID_t *roll_pid_params     = config.GetGyroPID(GYRO_AXIS_ROLL);
-    const rx_config_gyro_PID_t *pitch_pid_params    = config.GetGyroPID(GYRO_AXIS_PITCH);
-    const rx_config_gyro_PID_t *yaw_pid_params      = config.GetGyroPID(GYRO_AXIS_YAW);
+    const rx_config_gyro_PID_t *roll_pid_params     = config.GetGyroPID(GYRO_PID_GROUP_RATE, GYRO_AXIS_ROLL);
+    const rx_config_gyro_PID_t *pitch_pid_params    = config.GetGyroPID(GYRO_PID_GROUP_RATE, GYRO_AXIS_PITCH);
+    const rx_config_gyro_PID_t *yaw_pid_params      = config.GetGyroPID(GYRO_PID_GROUP_RATE, GYRO_AXIS_YAW);
 
     configure_pid_gains(&pid_roll,  roll_pid_params,    fm_settings.val.gainRoll,   roll_limit, -1.0 * roll_limit);
     configure_pid_gains(&pid_pitch, pitch_pid_params,   fm_settings.val.gainPitch,  pitch_limit, -1.0 * pitch_limit);
@@ -118,32 +128,42 @@ void RateController::calculate_stick_pri(float input_rpt[]) {
 void RateController::calculate_pid(float input_rpy[], float acc_rpy[], float ang_rpy[])
 {
     ignore_input[0] = ignore_input[1] = ignore_input[2] = false;
-    int8_t  rateMult = 4;   // 25% of full-Scale Accelerometer rate (TODO: Make it configurable)
 
     // Copy parameters to internal class variables
     for (int8_t axis = 0; axis < 3; axis++) {
         RateController::input_rpy[axis] = input_rpy[axis];
+        corr[axis] = 0;
     }
 
+    // If this mode don't use Rate? don't compute corrections
+    if (!fm_settings.val.useRate) return;
+
+
     calculate_stick_pri(input_rpy);
-
+    
+    // Adjustment Rate, otherwise it becomes too sensitive
+    const float ADJUSTMENT_FACTOR = 0.25  * gyro.gain_factor;
+    
     // Desired angular rate is zero
-    pid_roll.calculate(0, acc_rpy[GYRO_AXIS_ROLL]  / rateMult);
-    pid_pitch.calculate(0, acc_rpy[GYRO_AXIS_PITCH] / rateMult);
-    pid_yaw.calculate(0, -(acc_rpy[GYRO_AXIS_YAW]/ rateMult));
+    pid_roll.calculate(0,   acc_rpy[GYRO_AXIS_ROLL] * ADJUSTMENT_FACTOR);
+    pid_pitch.calculate(0,  acc_rpy[GYRO_AXIS_PITCH] * ADJUSTMENT_FACTOR);
+    pid_yaw.calculate(0,   -acc_rpy[GYRO_AXIS_YAW] * ADJUSTMENT_FACTOR);
 
-    corr[GYRO_AXIS_ROLL]  = pid_roll.output  * stick_pri[GYRO_AXIS_ROLL]  * gyro.master_gain;
-    corr[GYRO_AXIS_PITCH] = pid_pitch.output * stick_pri[GYRO_AXIS_PITCH]  * gyro.master_gain;
-    corr[GYRO_AXIS_YAW]   = pid_yaw.output   * stick_pri[GYRO_AXIS_YAW]    * gyro.master_gain;
+
+    float total_gain =  gyro.master_gain;
+    corr[GYRO_AXIS_ROLL]  = pid_roll.output  * stick_pri[GYRO_AXIS_ROLL]  * total_gain ;
+    corr[GYRO_AXIS_PITCH] = pid_pitch.output * stick_pri[GYRO_AXIS_PITCH] * total_gain;
+    corr[GYRO_AXIS_YAW]   = pid_yaw.output   * stick_pri[GYRO_AXIS_YAW]   * total_gain;
 }
 
 void RateController::printState() {
         char piddebug[128];
-        DBGLN("MASTER GAIN %f", gyro.master_gain);
+        DBGLN("TOTAL MASTER GAIN %f", gyro.master_gain * gyro.gain_factor);
         sprintf(piddebug,"Roll:%5.2f Pitch:%5.2f Yaw:%5.2f", radToDeg(gyro.angle_rpy[0]), radToDeg(gyro.angle_rpy[1]), radToDeg(gyro.angle_rpy[2])); 
         DBGLN("Angles:  %s",piddebug);
         sprintf(piddebug,"Roll:%5.2f Pitch:%5.2f Yaw:%5.2f", input_rpy[GYRO_AXIS_ROLL], input_rpy[GYRO_AXIS_PITCH], input_rpy[GYRO_AXIS_YAW]);    
         DBGLN("Cmds:    %s",piddebug);
+
         sprintf(piddebug,"Roll:%5.2f Pitch:%5.2f Yaw:%5.2f", stick_pri[GYRO_AXIS_ROLL], stick_pri[GYRO_AXIS_PITCH], stick_pri[GYRO_AXIS_YAW]);
         DBGLN("StickPri:%s",piddebug);
         sprintf(piddebug,"Roll:%5.2f Pitch:%5.2f Yaw:%5.2f",corr[GYRO_AXIS_ROLL], corr[GYRO_AXIS_PITCH], corr[GYRO_AXIS_YAW]);

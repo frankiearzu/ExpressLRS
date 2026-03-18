@@ -13,8 +13,6 @@
  //               bank.. Looks like the motor vibration or something is affecting it.. it does not happen with Mahoney
 #define USE_DMP  0  
 
-
-
 #define I2C_MASTER_FREQ_HZ 400000
 
 #if USE_DMP
@@ -28,6 +26,11 @@ static uint8_t fifoBuffer[64];   // FIFO storage buffer
 #endif
 
 static uint8_t accScaleCode, gyroScaleCode;
+
+
+const char * MPUDev_MPU6050::GetMPUName() {
+    return "MPU6050";
+}
 
 bool MPUDev_MPU6050::initialize() {
     MPU_Base::initialize();

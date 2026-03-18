@@ -11,7 +11,7 @@
 #include "mpu/mpu.h"
 #include "modes/mode.h"
 
-#define GYRO_CODE_VERSION   2
+#define GYRO_CODE_VERSION   1.2
 
 #define GYRO_US_MIN 988
 #define GYRO_US_MID 1500
@@ -30,9 +30,6 @@
 #define GYRO_BOOT_JITTER_TIMES 4
 #endif
 
-//class MPU_Base;
-//class Mode_Base;
-
 class Gyro
 {
 public:
@@ -41,6 +38,7 @@ public:
 
     gyro_status_t getStatus();
     gyro_mode_t getMode(void);
+    const char * getMPUName();
     void mixerInput();
     void mixerOutput(uint8_t ch, uint16_t *us);
     void send_telemetry();
@@ -56,7 +54,8 @@ public:
     MPU_Base *mpuDev = nullptr;
 
     float master_gain = 1.0;
-     gyro_mode_t gyro_mode;
+    float gain_factor = 1.0;
+    gyro_mode_t gyro_mode;
 // protected:
 
     // orientation/motion vars
@@ -95,4 +94,8 @@ void configure_pids(float roll_limit, float pitch_limit, float yaw_limit, const 
 
 // Helper method to configure a PID controller instance use the rx config values
 void configure_pid_gains(PID* pid, const rx_config_gyro_PID_t* pid_params, int8_t gain, float max, float min);
+
+
+void gyroSetConfigDefaults();
+bool gyroIsVisible(gyro_mode_t fm, gyro_ui_vibility_t category);
 #endif

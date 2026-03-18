@@ -4,7 +4,7 @@
 #include "config.h"
 #include "crsf_protocol.h"
 
-#include "mode_safe.h"
+#include "mode_envelope.h"
 #include "mixer.h"
 #include "pid.h"
 #include "gyro_types.h"
@@ -87,14 +87,14 @@
 static AngleLock AngleLockPitch;
 static AngleLock AngleLockRoll;
 
-void SafeController::initialize(gyro_mode_t mode)
+void AngEnvelopeController::initialize(gyro_mode_t mode)
 {
     RateController::initialize(mode);
 
     fm_angle_settings.raw =  config.GetGyroFMode(mode)->raw; // Default settings for ALL
 
-    const rx_config_gyro_PID_t *roll_pid_params     = config.GetGyroPID(GYRO_AXIS_ROLL);
-    const rx_config_gyro_PID_t *pitch_pid_params    = config.GetGyroPID(GYRO_AXIS_PITCH);
+    const rx_config_gyro_PID_t *roll_pid_params     = config.GetGyroPID(GYRO_PID_GROUP_ANGLE, GYRO_AXIS_ROLL);
+    const rx_config_gyro_PID_t *pitch_pid_params    = config.GetGyroPID(GYRO_PID_GROUP_ANGLE, GYRO_AXIS_PITCH);
    
     float roll_limit = 1.0;
     float pitch_limit = 1.0;
@@ -108,7 +108,7 @@ void SafeController::initialize(gyro_mode_t mode)
 }
 
 
-void SafeController::calculate_pid(float input_rpy[], float acc_rpy[], float ang_rpy[])
+void AngEnvelopeController::calculate_pid(float input_rpy[], float acc_rpy[], float ang_rpy[])
 {
     RateController::calculate_pid(input_rpy, acc_rpy, ang_rpy);
 
@@ -116,8 +116,8 @@ void SafeController::calculate_pid(float input_rpy[], float acc_rpy[], float ang
     float pitch_angle = - ang_rpy[GYRO_AXIS_PITCH] + degToRad(fm_settings.val.trimPitch);
     float roll_angle  = ang_rpy[GYRO_AXIS_ROLL] + degToRad(fm_settings.val.trimRoll);
 
-    AngleLockPitch.compute_pid(&pid_angle_pitch, pitch_angle, degToRad(fm_angle_settings.val.angleMaxPitch), input_rpy[GYRO_AXIS_PITCH]);
-    AngleLockRoll.compute_pid(&pid_angle_roll, roll_angle, degToRad(fm_angle_settings.val.angleMaxRoll), input_rpy[GYRO_AXIS_ROLL]);
+    AngleLockPitch.compute_pid(&pid_angle_pitch, pitch_angle, degToRad(fm_angle_settings.val.maxAnglePitch), input_rpy[GYRO_AXIS_PITCH]);
+    AngleLockRoll.compute_pid(&pid_angle_roll, roll_angle, degToRad(fm_angle_settings.val.maxAngleRoll), input_rpy[GYRO_AXIS_ROLL]);
 
     if (isInverted(ang_rpy)) pid_angle_pitch.reset(); // don't apply elevator corrections if inverted
     if (isHighPitch(ang_rpy)) pid_angle_roll.reset(); // Roll does not work well in high pitch angles (> 80 deg)
@@ -130,7 +130,7 @@ void SafeController::calculate_pid(float input_rpy[], float acc_rpy[], float ang
     ignore_input[GYRO_AXIS_ROLL]  = AngleLockRoll.ignoreCommand();
 }
 
-void SafeController::printState() {
+void AngEnvelopeController::printState() {
     RateController::printState();
 
     DBGLN("IgnoreCmd:  Roll:%d Pitch:%d ", ignore_input[GYRO_AXIS_ROLL], ignore_input[GYRO_AXIS_PITCH]);
