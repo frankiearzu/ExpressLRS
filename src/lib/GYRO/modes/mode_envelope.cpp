@@ -119,15 +119,22 @@ void AngEnvelopeController::calculate_pid(float input_rpy[], float acc_rpy[], fl
     AngleLockPitch.compute_pid(&pid_angle_pitch, pitch_angle, degToRad(fm_angle_settings.val.maxAnglePitch), input_rpy[GYRO_AXIS_PITCH]);
     AngleLockRoll.compute_pid(&pid_angle_roll, roll_angle, degToRad(fm_angle_settings.val.maxAngleRoll), input_rpy[GYRO_AXIS_ROLL]);
 
-    if (isInverted(ang_rpy)) pid_angle_pitch.reset(); // don't apply elevator corrections if inverted
-    if (isHighPitch(ang_rpy)) pid_angle_roll.reset(); // Roll does not work well in high pitch angles (> 80 deg)
-    
+    ignore_input[GYRO_AXIS_PITCH] = AngleLockPitch.ignoreCommand();
+    ignore_input[GYRO_AXIS_ROLL]  = AngleLockRoll.ignoreCommand();
+
+    if (isInverted(ang_rpy)) {
+        pid_angle_pitch.reset(); // don't apply elevator corrections if inverted
+        ignore_input[GYRO_AXIS_PITCH] = false; // But let the stick controll it.
+    }
+
+    if (isHighPitch(ang_rpy)) {
+        pid_angle_roll.reset(); // Roll does not work that well in high pitch angles (80 deg)
+        ignore_input[GYRO_AXIS_ROLL] = false; // Allow the stick to command roll
+    }
+
     // Add angle correction to rate corrections
     corr[GYRO_AXIS_ROLL]  += pid_angle_roll.output;
     corr[GYRO_AXIS_PITCH] += pid_angle_pitch.output;
-
-    ignore_input[GYRO_AXIS_PITCH] = AngleLockPitch.ignoreCommand();
-    ignore_input[GYRO_AXIS_ROLL]  = AngleLockRoll.ignoreCommand();
 }
 
 void AngEnvelopeController::printState() {

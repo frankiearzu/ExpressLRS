@@ -60,8 +60,15 @@ void LevelController::calculate_pid(float input_rpy[], float acc_rpy[], float an
     pid_angle_pitch.calculate(setpoint_pitch,pitch_angle);
     pid_angle_roll.calculate(setpoint_roll,roll_angle);
 
-    if (isInverted(ang_rpy)) pid_angle_pitch.reset(); // don't apply elevator corrections if inverted
-    if (isHighPitch(ang_rpy)) pid_angle_roll.reset(); // Roll does not work that well in high pitch angles (80 deg)
+    if (isInverted(ang_rpy)) {
+        pid_angle_pitch.reset(); // don't apply elevator corrections if inverted
+        ignore_input[GYRO_AXIS_PITCH] = false; // But let the stick controll it.
+    }
+
+    if (isHighPitch(ang_rpy)) {
+        pid_angle_roll.reset(); // Roll does not work that well in high pitch angles (80 deg)
+        ignore_input[GYRO_AXIS_ROLL] = false; // Allow the stick to command roll
+    }
 
     // Add angle correction to rate corrections ajusted to angle Gains
     corr[GYRO_AXIS_ROLL]  += pid_angle_roll.output;
