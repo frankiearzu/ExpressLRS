@@ -49,8 +49,13 @@ void LevelController::calculate_pid(float input_rpy[], float acc_rpy[], float an
     ignore_input[GYRO_AXIS_ROLL] = ignore_input[GYRO_AXIS_PITCH] = true;
 
     // Get Pitch/Roll angles adjusted to the Level trims  (global + current senttings)
-    float pitch_angle = - gyro.angle_rpy[GYRO_AXIS_PITCH] + degToRad((int8_t) fm_settings.val.trimPitch);
-    float roll_angle  = gyro.angle_rpy[GYRO_AXIS_ROLL] + degToRad((int8_t) fm_settings.val.trimRoll);
+    float pitch_angle = - ang_rpy[GYRO_AXIS_PITCH] + degToRad((int8_t) fm_settings.val.trimPitch);
+    float roll_angle  =   ang_rpy[GYRO_AXIS_ROLL]  + degToRad((int8_t) fm_settings.val.trimRoll);
+
+    if (isInverted(ang_rpy)) {
+        // The pitch seems to be reported the same even when it is inverted in the roll axis
+        pitch_angle *= -1; // reverse pitch
+    }
 
     // Angle Demand
     // The stick tell the percentage of the max angle where we want the plane to be
@@ -77,7 +82,7 @@ void LevelController::calculate_pid(float input_rpy[], float acc_rpy[], float an
 
 void LevelController::printState() {
     RateController::printState();
-
+    DBGLN("IsInverted = %d,  IsHighPitch=%d", isInverted(gyro.angle_rpy), isHighPitch(gyro.angle_rpy));
     DBGLN("IgnoreCmd:  Roll:%d Pitch:%d ", ignore_input[GYRO_AXIS_ROLL], ignore_input[GYRO_AXIS_PITCH]);
     DBGLN("Ang Corr:   Roll:%f Pitch:%f", pid_angle_roll.output, pid_angle_pitch.output);
 
