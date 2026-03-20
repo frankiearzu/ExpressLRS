@@ -34,13 +34,15 @@ static rx_config_pwm_limits_t temp_limits[PWM_MAX_CHANNELS] = {};
 // Must match mixer.h: gyro_output_channel_function_t
 //static const char* STR_gyroOutputChannelMode[] = {"None","Aileron","Elevator","Rudder","Elevon","V Tail"};
 // Must match gyro.h gyro_mode_t
-static const char* STR_gyroMode[] = {"Off","Rate","SAFE","Level","Launch","Hover"};
+static const char* STR_gyroMode[] = {"Off","Rate","Envelope","AutoLevel","Launch","Hover"};
 // Must match gyro_axis_t
 static const char* STR_gyroAxis[] = {"Roll","Pitch","Yaw"}; 
 
 //volatile gyro_event_t gyro_event = GYRO_EVENT_NONE;
 
 static Mode_Base*  mode_controllers [GYRO_MODE_LAST_ACTIVE+1] = { };
+static bool        first_start = true;
+
 
 #ifdef GYRO_BOOT_JITTER
 static uint8_t boot_jitter_times = 0;
@@ -164,11 +166,14 @@ void Gyro::start()
 
 
     #ifdef GYRO_BOOT_JITTER
-    boot_jitter_times = 0;
-    boot_jitter_time = 0;
+    if (first_start) {
+        boot_jitter_times = 0;
+        boot_jitter_time = 0;
+    }
     #endif
-
+    
     DBGLN("Gyro:Start() END");
+    first_start = false;
 }
 
 const char * Gyro::getMPUName() {
@@ -187,6 +192,7 @@ gyro_status_t Gyro::getStatus()
 void Gyro::calibrate()
 {
     initialized = false;
+    first_start = true;
     // Level Calibration
     mpuDev->calibrate(true);
     initialized = mpuDev->isRunning();

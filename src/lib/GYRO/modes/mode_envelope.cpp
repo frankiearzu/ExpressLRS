@@ -47,38 +47,41 @@
         
         /* manage gyro at different states */
         void compute_pid (PID *pid, float angle, float max_angle, float cmd_in) {
+            ignore_cmd = false;
+
             if (state==ANGLE_STATE_OFF) { // Still below angle limits
                 if (abs(angle) > max_angle) { // Past angle limit??
-                    float setpoint = angle > 0 ? max_angle : - max_angle;
-                    pid->calculate(setpoint,angle);
-                    cmd_dir = (cmd_in<0?-1:+1); // Save the direction of the stick input
                     state = ANGLE_STATE_AT_MAX; // At Angle Limit
-                    DBGLN("Safe(): MAX Angle Locked");
+                    DBGLN("Envelope(Ang:%f): MAX Angle Locked",radToDeg(angle));
                 } else {
                     // Normal operation, below angle limit
                     pid->reset();
                 }
             } else
             if (state==ANGLE_STATE_AT_MAX) { // Above angle limit
-                ignore_cmd = true; // Ignore the stick input
-                float setpoint = angle > 0 ? max_angle : - max_angle;
-                pid->calculate(setpoint,angle);
+                ignore_cmd = false;
+                int8_t ang_dir = (angle <0?-1:+1);
                 int8_t stick_dir = (cmd_in<0?-1:+1); // Sign/direction of stick
-                if (stick_dir!=cmd_dir || // Stick change direction past middle??
-                     fabs(stick_dir) < CENTER_DEADBAND) // or in Center??
-                { 
-                    // Stick trying to degrease bank angle
-                    DBGLN("Safe(): Dectected Stick Reversal");
-                    state=ANGLE_STATE_REVERSING; // Rolling back
-                }
-            } 
-            if (state==ANGLE_STATE_REVERSING) { // Reversing Dir, wait until we decrease angle below max to reset state
-                 ignore_cmd = false; // stick is effective again, decreasing angle 
-                 pid->reset();
-                 if (abs(angle) < max_angle) { // Below max angle??
-                    DBGLN("Safe(): Back to normal Angle");
+
+                if (abs(angle) < max_angle && stick_dir!=ang_dir) { // Angle Back to normal, and stick trying to decrease bank??
+                    DBGLN("Envelope(): Back to normal Angle");
+                    ignore_cmd = false;
+                    pid->reset();
                     state = ANGLE_STATE_OFF;  // back to normal
-                 } 
+                } else {
+                    // Still past MAX angle
+                    if (stick_dir!=ang_dir)   // Stick trying to degrease bank angle (Oposite direction)
+                    { 
+                        // Let the stick have control
+                        pid->reset(); // 0 correction
+                        ignore_cmd = false;  // stick is effective again, decreasing angle  
+                    } else {
+                        // Gyro Envelope keeps control
+                        float setpoint = angle > 0 ? max_angle : - max_angle;
+                        pid->calculate(setpoint,angle);
+                        ignore_cmd = true;
+                    }
+                }
             } 
         };
  };
@@ -116,12 +119,18 @@ void AngEnvelopeController::calculate_pid(float input_rpy[], float acc_rpy[], fl
     float pitch_angle = - ang_rpy[GYRO_AXIS_PITCH] + degToRad(fm_settings.val.trimPitch);
     float roll_angle  = ang_rpy[GYRO_AXIS_ROLL] + degToRad(fm_settings.val.trimRoll);
 
+    if (isInverted(ang_rpy)) {
+        // The pitch seems to be reported the same even when it is inverted in the roll axis
+        pitch_angle *= -1; // reverse pitch
+    }
+
     AngleLockPitch.compute_pid(&pid_angle_pitch, pitch_angle, degToRad(fm_angle_settings.val.maxAnglePitch), input_rpy[GYRO_AXIS_PITCH]);
     AngleLockRoll.compute_pid(&pid_angle_roll, roll_angle, degToRad(fm_angle_settings.val.maxAngleRoll), input_rpy[GYRO_AXIS_ROLL]);
 
     ignore_input[GYRO_AXIS_PITCH] = AngleLockPitch.ignoreCommand();
     ignore_input[GYRO_AXIS_ROLL]  = AngleLockRoll.ignoreCommand();
 
+    /*
     if (isInverted(ang_rpy)) {
         pid_angle_pitch.reset(); // don't apply elevator corrections if inverted
         ignore_input[GYRO_AXIS_PITCH] = false; // But let the stick controll it.
@@ -131,6 +140,7 @@ void AngEnvelopeController::calculate_pid(float input_rpy[], float acc_rpy[], fl
         pid_angle_roll.reset(); // Roll does not work that well in high pitch angles (80 deg)
         ignore_input[GYRO_AXIS_ROLL] = false; // Allow the stick to command roll
     }
+    */
 
     // Add angle correction to rate corrections
     corr[GYRO_AXIS_ROLL]  += pid_angle_roll.output;
