@@ -83,12 +83,12 @@ void  RateController::applyFModeSettings(gyro_mode_t fm) {
 
 
 bool RateController::isInverted(float angle_rpy[]) {
-    float angleDeg = fabs(angle_rpy[GYRO_AXIS_ROLL]);
-    return angleDeg > 100;
+    float angleDeg = radToDeg(fabs(angle_rpy[GYRO_AXIS_ROLL]));
+    return angleDeg > 110;
 }
 
 bool RateController::isHighPitch(float angle_rpy[]) {
-    float angleDeg = fabs(angle_rpy[GYRO_AXIS_PITCH]);
+    float angleDeg = radToDeg(fabs(angle_rpy[GYRO_AXIS_PITCH]));
     return angleDeg > 80;
 }
 
@@ -138,16 +138,15 @@ void RateController::calculate_pid(float input_rpy[], float acc_rpy[], float ang
     // If this mode don't use Rate? don't compute corrections
     if (!fm_settings.val.useRate) return;
 
-
     calculate_stick_pri(input_rpy);
     
     // Adjustment Rate, otherwise it becomes too sensitive
     const float ADJUSTMENT_FACTOR = 0.25  * gyro.gain_factor;
     
     // Desired angular rate is zero
-    pid_roll.calculate(0,   acc_rpy[GYRO_AXIS_ROLL] * ADJUSTMENT_FACTOR);
+    pid_roll.calculate(0,   acc_rpy[GYRO_AXIS_ROLL]  * ADJUSTMENT_FACTOR);
     pid_pitch.calculate(0,  acc_rpy[GYRO_AXIS_PITCH] * ADJUSTMENT_FACTOR);
-    pid_yaw.calculate(0,   -acc_rpy[GYRO_AXIS_YAW] * ADJUSTMENT_FACTOR);
+    pid_yaw.calculate(0,   -acc_rpy[GYRO_AXIS_YAW]   * ADJUSTMENT_FACTOR);
 
 
     float total_gain =  gyro.master_gain;
