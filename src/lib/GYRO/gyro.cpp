@@ -16,11 +16,14 @@
 
 
 // Comment to Remove Debug of State
+#if defined(DEBUG_LOG)
 #define GYRO_PID_DEBUG_TIME 5000  // Time im Ms
 
 #ifdef GYRO_PID_DEBUG_TIME
 unsigned long gyro_debug_time = 0;
 #endif
+
+#endif // DEBUG_LOG
 
 // Channel Data
 extern uint32_t ChannelData[CRSF_NUM_CHANNELS];
@@ -34,7 +37,7 @@ static rx_config_pwm_limits_t temp_limits[PWM_MAX_CHANNELS] = {};
 // Must match mixer.h: gyro_output_channel_function_t
 //static const char* STR_gyroOutputChannelMode[] = {"None","Aileron","Elevator","Rudder","Elevon","V Tail"};
 // Must match gyro.h gyro_mode_t
-static const char* STR_gyroMode[] = {"Off","Rate","Envelope","AutoLevel","Launch","Hover"};
+static const char* STR_gyroMode[] = {"Off","Rate","Envelope","Auto-Level","Launch","Hover"};
 // Must match gyro_axis_t
 static const char* STR_gyroAxis[] = {"Roll","Pitch","Yaw"}; 
 
@@ -288,7 +291,7 @@ void Gyro::mixerInput()
 
     mode_controller->calculate_pid(input_rpy, acc_rpy, angle_rpy);
 
-    #ifdef GYRO_PID_DEBUG_TIME
+    #if defined(DEBUG_LOG) && defined(GYRO_PID_DEBUG_TIME)
     if (gyro.gyro_mode != GYRO_MODE_OFF &&
         micros() - gyro_debug_time > GYRO_PID_DEBUG_TIME * 1000
     ) {

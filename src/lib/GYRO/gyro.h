@@ -11,7 +11,7 @@
 #include "mpu/mpu.h"
 #include "modes/mode.h"
 
-#define GYRO_CODE_VERSION   1.04
+#define GYRO_CODE_VERSION   1.05
 
 #define GYRO_US_MIN 988
 #define GYRO_US_MID 1500

@@ -9,7 +9,9 @@ class LevelController: public RateController
         LevelController();
         void    initialize(gyro_mode_t mode);
         void    calculate_pid(float input_rpy[], float acc_rpy[], float ang_rpy[]);
+        #if defined(DEBUG_LOG)
         void    printState();
+        #endif
 
     protected:
         rx_config_gyro_fmode_t fm_angle_settings;

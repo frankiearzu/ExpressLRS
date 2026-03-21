@@ -15,7 +15,9 @@ class RateController: public Mode_Base
         virtual uint16_t applyCorrection(uint8_t ch, gyro_output_channel_function_t channel_function, float command,bool inverted);
         bool    isInverted(float angle_rpy[]);
         bool    isHighPitch(float angle_rpy[]);
+        #if defined(DEBUG_LOG)
         void    printState();
+        #endif
     protected:
         void    configure_pids(float roll_limit, float pitch_limit, float yaw_limit, const rx_config_gyro_fmode_t *fm);
         void    configure_pid_gains(PID *pid, const rx_config_gyro_PID_t *pid_params, int8_t gain, float max, float min);

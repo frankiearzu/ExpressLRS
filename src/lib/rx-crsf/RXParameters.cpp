@@ -56,6 +56,9 @@ static const char gyroAxis[] = "Roll;Pitch;Yaw";
 
 static char gyroStatusStr[30]; // Display Status + Version
 
+static const char gyroRxOrientations[] = 
+    {"QRC Dn(X+);QRC Up(X-);Pins Up(Y+);Pins Dn(Y-);Lbl Up(Z+);Lbl Dn(Z-);WRONG;WRONG"};
+
 #endif
 
 static selectionParameter luaSerialProtocol = {
@@ -414,15 +417,18 @@ static void luaparamGyroPID_RateD(propertiesCommon *item, uint8_t arg)
 }
 
 //------------  Gyro RX Orientation Info -------------
-static stringParameter luaGyroOrientationH = {
-    {"Face Hor", CRSF_INFO},
-    ""
+static selectionParameter luaGyroOrientationH = {
+    {"Face Hor", CRSF_TEXT_SELECTION},
+    6, // WRONG orintation
+    gyroRxOrientations,
+    STR_EMPTYSPACE
 };
 
-static stringParameter luaGyroOrientationV = {
-    {"Face Vert", CRSF_INFO},
-    ""
-};
+static selectionParameter luaGyroOrientationV = {
+    {"Face Vert", CRSF_TEXT_SELECTION},
+    6, // WRONG orintation
+    gyroRxOrientations,
+    STR_EMPTYSPACE};
 
 //---------  Reset Commands ---------------------
 
@@ -1514,12 +1520,21 @@ void RXEndpoint::registerParameters()
     registerParameter(&luaGyroAutoOrientation, [this](propertiesCommon* item, uint8_t arg) {
       luaparamGyroOrientationCal(item, arg); 
       // Reload Values
-      setStringValue(&luaGyroOrientationH, mpuOrientationNames[config.GetGyroOrientationH()]);
-      setStringValue(&luaGyroOrientationV, mpuOrientationNames[config.GetGyroOrientationV()]);
+      setTextSelectionValue(&luaGyroOrientationH, config.GetGyroOrientationH());
+      setTextSelectionValue(&luaGyroOrientationV, config.GetGyroOrientationV());
     }, luaGyroRxOrientationFolder.common.id);
     
-    registerParameter(&luaGyroOrientationH,  nullptr, luaGyroRxOrientationFolder.common.id);
-    registerParameter(&luaGyroOrientationV,  nullptr, luaGyroRxOrientationFolder.common.id);
+    registerParameter(&luaGyroOrientationH,  [this](propertiesCommon* item, uint8_t arg) {
+      setTextSelectionValue(&luaGyroOrientationH, arg);
+      config.SetGyroOrientation(luaGyroOrientationH.value,luaGyroOrientationV.value);
+      gyro.reload();
+    }, luaGyroRxOrientationFolder.common.id);
+    
+    registerParameter(&luaGyroOrientationV,  [this](propertiesCommon* item, uint8_t arg) {
+      setTextSelectionValue(&luaGyroOrientationV, arg);
+      config.SetGyroOrientation(luaGyroOrientationH.value,luaGyroOrientationV.value);
+      gyro.reload();
+    }, luaGyroRxOrientationFolder.common.id);
 
     // ----- Gyro -> Settings - > Calibration -> Gyro Calibration
     registerParameter(&luaGyroCalibration, [this](propertiesCommon* item, uint8_t arg) { 
@@ -1667,8 +1682,8 @@ void RXEndpoint::updateParameters()
     setUint8Value(&luaGyroPID_RateI, gyroPIDs->i);
     setUint8Value(&luaGyroPID_RateD, gyroPIDs->d);
 
-    setStringValue(&luaGyroOrientationH, mpuOrientationNames[config.GetGyroOrientationH()]);
-    setStringValue(&luaGyroOrientationV, mpuOrientationNames[config.GetGyroOrientationV()]);
+    setTextSelectionValue(&luaGyroOrientationH, config.GetGyroOrientationH());
+    setTextSelectionValue(&luaGyroOrientationV, config.GetGyroOrientationV());
 
     const gyro_mode_t fm = (gyro_mode_t) (luaGyroFMode_Select.value + GYRO_MODE_RATE); // Start at 1
     const rx_config_gyro_fmode_t *fMode = config.GetGyroFMode(fm);

@@ -155,6 +155,7 @@ void RateController::calculate_pid(float input_rpy[], float acc_rpy[], float ang
     corr[GYRO_AXIS_YAW]   = pid_yaw.output   * stick_pri[GYRO_AXIS_YAW]   * total_gain;
 }
 
+#if defined(DEBUG_LOG)
 void RateController::printState() {
         char piddebug[128];
         DBGLN("TOTAL MASTER GAIN %f", gyro.master_gain * gyro.gain_factor);
@@ -175,6 +176,7 @@ void RateController::printState() {
         _make_gyro_debug_string(&pid_yaw, piddebug);
         DBGLN("PID Yaw   %s", piddebug);
 }
+#endif 
 
 uint16_t RateController::applyCorrection(uint8_t ch, gyro_output_channel_function_t channel_function, float command, bool inverted) {
     float correction = 0.0;

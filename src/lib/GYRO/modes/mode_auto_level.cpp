@@ -80,6 +80,7 @@ void LevelController::calculate_pid(float input_rpy[], float acc_rpy[], float an
     corr[GYRO_AXIS_PITCH] += pid_angle_pitch.output;   
 }
 
+#if defined(DEBUG_LOG)
 void LevelController::printState() {
     RateController::printState();
     DBGLN("IsInverted = %d,  IsHighPitch=%d", isInverted(gyro.angle_rpy), isHighPitch(gyro.angle_rpy));
@@ -87,5 +88,6 @@ void LevelController::printState() {
     DBGLN("Ang Corr:   Roll:%f Pitch:%f", pid_angle_roll.output, pid_angle_pitch.output);
 
 }
+#endif // DEBUG_LOG
 
 #endif

@@ -147,12 +147,13 @@ void AngEnvelopeController::calculate_pid(float input_rpy[], float acc_rpy[], fl
     corr[GYRO_AXIS_PITCH] += pid_angle_pitch.output;
 }
 
+#if defined(DEBUG_LOG)
 void AngEnvelopeController::printState() {
     RateController::printState();
 
     DBGLN("IgnoreCmd:  Roll:%d Pitch:%d ", ignore_input[GYRO_AXIS_ROLL], ignore_input[GYRO_AXIS_PITCH]);
     DBGLN("Ang Corr:   Roll:%f Pitch:%f", pid_angle_roll.output, pid_angle_pitch.output);
-
 }
+#endif // DEBUG_LOG
 
 #endif
