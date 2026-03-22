@@ -94,8 +94,15 @@ device_affinity_t ui_devices[] = {
   {&ServoOut_device, 1},
 #ifdef HAS_GYRO
   {&Gyro_device, 1},
-#endif
+#else
+  // Don't activate the Baro when Gyro.. both use I2C and currently
+  // does not work when "Wire" functions are called from Different Cores
+  
+  // TODO: check if we can activate the Thread safe use of Wire, or use a
+  // semaphore when reading I2C devices
+
   {&Baro_device, 0}, // must come after AnalogVbat_device to slow updates
+#endif
 #if defined(PLATFORM_ESP32) && !defined(PLATFORM_ESP32_C3)
   {&VTxSPI_device, 0},
   {&MSPVTx_device, 0}, // dependency on VTxSPI_device
