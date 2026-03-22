@@ -158,7 +158,7 @@ void RateController::calculate_pid(float input_rpy[], float acc_rpy[], float ang
 #if defined(DEBUG_LOG)
 void RateController::printState() {
         char piddebug[128];
-        DBGLN("TOTAL MASTER GAIN %f", gyro.master_gain * gyro.gain_factor);
+        DBGLN("TOTAL MASTER GAIN %f.  IMU_ReadErrors=%d", gyro.master_gain * gyro.gain_factor, gyro.getIMUReadErrors());
         sprintf(piddebug,"Roll:%5.2f Pitch:%5.2f Yaw:%5.2f", radToDeg(gyro.angle_rpy[0]), radToDeg(gyro.angle_rpy[1]), radToDeg(gyro.angle_rpy[2])); 
         DBGLN("Angles:  %s",piddebug);
         sprintf(piddebug,"Roll:%5.2f Pitch:%5.2f Yaw:%5.2f", input_rpy[GYRO_AXIS_ROLL], input_rpy[GYRO_AXIS_PITCH], input_rpy[GYRO_AXIS_YAW]);    

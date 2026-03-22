@@ -175,8 +175,10 @@ void MPUDev_LSM6DXX::start() {
 bool MPUDev_LSM6DXX::read(float accel_rpy[], float angle_rpy[]) {
     if (orientationIsWrong) return false;
 
-    rawRead(&v_accel.x, &v_accel.y, &v_accel.z,
-            &v_gyro.x,  &v_gyro.y,  &v_gyro.z); 
+    if (!rawRead(&v_accel.x, &v_accel.y, &v_accel.z,
+                 &v_gyro.x,  &v_gyro.y,  &v_gyro.z)) {
+        return false; 
+    } 
 
     v_accel.x -= cal_accel_offets.x;
     v_accel.y -= cal_accel_offets.y;

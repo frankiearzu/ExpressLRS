@@ -67,7 +67,7 @@ void MPU_Base::writeRegisterBits(uint8_t registerID, uint8_t mask, uint8_t value
         delayMicroseconds(2);
         newValue = (newValue & ~mask) | value;
         writeRegister(registerID, newValue);
-    }    
+    }
 }
 
 void MPU_Base::start() {
@@ -195,8 +195,16 @@ uint8_t MPU_Base::readAndGetGravity(){ // return index of orientation; return 6 
     int16_t ax,ay,az ;
     int16_t gx,gy,gz ;
     uint8_t idx = 6; 
-    rawRead(&ax, &ay, &az, &gx, &gy, &gz);
-    findGravity( ax , ay , az , idx);
+    
+    uint8_t i = 3;
+    do {
+        if (rawRead(&ax, &ay, &az, &gx, &gy, &gz)) {
+            findGravity( ax , ay , az , idx);
+            break;
+        }
+        i =- 1;
+    } while (i > 0);
+    
 	return idx;
 }
 

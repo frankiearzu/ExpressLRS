@@ -51,6 +51,7 @@ public:
     void StickCenterCalibration();
     void StickLimitCalibration(bool done);
 
+    long getIMUReadErrors();
     MPU_Base *mpuDev = nullptr;
 
     float master_gain = 1.0;
@@ -65,6 +66,7 @@ public:
 
     uint16_t update_rate;
     unsigned long last_update;
+    uint8_t data_ready=false;
     bool initialized;
     gyro_learn_state_t learn_state = GYRO_LEARN_OFF;
 

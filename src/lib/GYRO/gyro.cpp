@@ -45,6 +45,7 @@ static const char* STR_gyroAxis[] = {"Roll","Pitch","Yaw"};
 
 static Mode_Base*  mode_controllers [GYRO_MODE_LAST_ACTIVE+1] = { };
 static bool        first_start = true;
+static long        IMU_read_errors = 0;
 
 
 #ifdef GYRO_BOOT_JITTER
@@ -264,12 +265,15 @@ void Gyro::mixerInput()
     // We get called before the gyro configuration is initialized
     if (!initialized || learn_state != GYRO_LEARN_OFF) return;
 
+
     if ((micros() - pid_delay) < 1000 ) return; // ~1k PID loop
     pid_delay = micros();
 
     if (mode_ch >= 0) detect_mode(channel_us(mode_ch));
-    
     if (mode_controller == nullptr) return;
+
+    //if (data_ready==0) return;
+    //data_ready = 0;
 
     float input_rpy[3]  = {0.0, 0.0, 0.0};
    
@@ -379,6 +383,10 @@ void Gyro::send_telemetry()
     crsfRouter.deliverMessageTo(CRSF_ADDRESS_CRSF_TRANSMITTER, &crsfFlightMode.h);
 }
 
+long Gyro::getIMUReadErrors() {
+    return IMU_read_errors;
+}
+
 int Gyro::tick()
 {
     static long tel_delay = 0; // Behaves like Global
@@ -387,15 +395,19 @@ int Gyro::tick()
 
     if (mpuDev->read(acc_rpy, angle_rpy)) {
         last_update = micros();
+        data_ready = true;
+
 
         if ((micros() - tel_delay) > 300000 ) { // 300 ms cycle
             tel_delay = micros();
             send_telemetry();
         }
+    } else {
+        IMU_read_errors++;
+        return DURATION_IMMEDIATELY;
     }
 
     return 1; //1 ms:  ~1k gyro refresh loop (return for timeout)
-    //return DURATION_IMMEDIATELY;
 }
 
 uint8_t Gyro::event() 

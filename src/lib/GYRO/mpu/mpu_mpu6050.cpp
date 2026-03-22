@@ -34,9 +34,10 @@ const char * MPUDev_MPU6050::GetMPUName() {
 
 bool MPUDev_MPU6050::initialize() {
     MPU_Base::initialize();
+    m_address = MPU6050_DEFAULT_ADDRESS;
 
     DBGLN("Detecting MPU6050");
-    Wire.setClock(I2C_MASTER_FREQ_HZ);
+    //Wire.setClock(I2C_MASTER_FREQ_HZ);
     mpu =  new MPU6050();
 
     bool found = false;
@@ -81,7 +82,7 @@ void MPUDev_MPU6050::start() {
 
     mpu->setFullScaleAccelRange(accScaleCode);
     mpu->setFullScaleGyroRange(gyroScaleCode);
-    mpu->setMasterClockSpeed(MPU6050_CLOCK_DIV_400); // 400kHz
+    mpu->setMasterClockSpeed(MPU6050_CLOCK_DIV_400); // 400kHz that matches Wire Clock
     
     const rx_config_gyro_calibration_t *offsets;
     offsets = config.GetAccelCalibration();
@@ -95,6 +96,8 @@ void MPUDev_MPU6050::start() {
     mpu->setYGyroOffset(offsets->y);
     mpu->setZGyroOffset(offsets->z);
     DBGLN("MPU6050 Gyro Offs:  x=%d,y=%d,z=%d",offsets->x, offsets->y,offsets->z);
+
+    vTaskDelay(50 * portTICK_PERIOD_MS);
 
     setupOrientation();
     //DBGLN("MPU6050: Gyro Calibration");
@@ -134,8 +137,10 @@ bool MPUDev_MPU6050::read(float accel_rpy[], float angle_rpy[]) {
     mpu->dmpGetQuaternion(&q, fifoBuffer); // [w, x, y, z] quaternion container
 #else
     // Regular READ
-    rawRead(&v_accel.x, &v_accel.y, &v_accel.z, 
-            &v_gyro.x,  &v_gyro.y,  &v_gyro.z);
+    if (!rawRead(&v_accel.x, &v_accel.y, &v_accel.z, 
+            &v_gyro.x,  &v_gyro.y,  &v_gyro.z)) {
+        return false;
+    }
 #endif
 
     applyOrientation(&v_gyro);
@@ -185,8 +190,24 @@ bool MPUDev_MPU6050::read(float accel_rpy[], float angle_rpy[]) {
 
 bool MPUDev_MPU6050::rawRead(int16_t *ax, int16_t *ay, int16_t *az, int16_t *gx, int16_t *gy, int16_t *gz) 
 {
-    mpu->getMotion6(ax, ay, az, gx, gy, gz);
-    return true;
+    uint8_t buffer[14];
+
+    //do the same, but retun error:  mpu->getMotion6(ax, ay, az, gx, gy, gz);
+    bool readOk = I2Cdev::readBytes(m_address, MPU6050_RA_ACCEL_XOUT_H, 14, buffer, 1) == 14;
+
+    if (readOk) {
+        *ax = (((int16_t)buffer[0]) << 8) | buffer[1];
+        *ay = (((int16_t)buffer[2]) << 8) | buffer[3];
+        *az = (((int16_t)buffer[4]) << 8) | buffer[5];
+        *gx = (((int16_t)buffer[8]) << 8) | buffer[9];
+        *gy = (((int16_t)buffer[10]) << 8) | buffer[11];
+        *gz = (((int16_t)buffer[12]) << 8) | buffer[13];
+    } else {
+        *ax = *ay = *az = 0;
+        *gx = *gy = *gz = 0;
+    } 
+
+    return readOk;
 }
 
 bool MPUDev_MPU6050::CalibrateGyro(int8_t loops, rx_config_gyro_calibration_t *offsets)
@@ -206,7 +227,6 @@ bool MPUDev_MPU6050::CalibrateGyro(int8_t loops, rx_config_gyro_calibration_t *o
     DBGLN ("Stating Gyro Calibration..");
     mpu->CalibrateGyro(8);
     
-
     // Get the offsets
     offsets->x = mpu->getXGyroOffset();
     offsets->y = mpu->getYGyroOffset();
@@ -245,7 +265,6 @@ bool MPUDev_MPU6050::CalibrateAccel(int8_t loops, rx_config_gyro_calibration_t *
 
     DBGLN ("\nAccelerometer Calibration completed..");
     DBGLN("MPU605 Accel Offs:  x=%d,y=%d,z=%d",offsets->x, offsets->y,offsets->z);
-
 
     mpu->setXAccelOffset(0);
     mpu->setYAccelOffset(0);
