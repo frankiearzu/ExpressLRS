@@ -739,9 +739,9 @@ static int8Parameter luaGyroFMode_AngLimitPitch = {
   {"Limit Pitch", CRSF_UINT8},
   {
     {
-      (uint8_t)40, // value, not zero-based
+      (uint8_t)10, // value, not zero-based
       10,           // min
-      90,          // max
+      50,          // max
     }
   },
   " deg"
@@ -751,9 +751,9 @@ static int8Parameter luaGyroFMode_AngLimitRoll = {
   {"Limit Roll", CRSF_UINT8},
   {
     {
-      (uint8_t)60, // value, not zero-based
-      10,           // min
-      60,          // max
+      (uint8_t)30, // value, not zero-based
+      30,           // min
+      90,          // max
     }
   },
   " deg"
