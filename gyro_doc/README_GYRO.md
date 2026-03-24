@@ -3,9 +3,12 @@
 This code is an adaptation of the original gyro code created by Alex Wigen [Original Code](https://github.com/awigen/ExpressLRS/tree/add-rx-gyro-support).
 A lot of code has been changed from the original to make it easier to setup.  Some parts of code has been taking from other open source project, including Inav, OpenXSensor Gyro.  
 
-I got some of the new RX with Gyro from Hello Radio Sky to play (Thanks Ken!). <b>This are prototype RXs.. not yet for sale!, but for developerts/testers</b>.
+I got some of the new RX with Gyro from Hello Radio Sky to play (Thanks Ken!). 
+The idea is to have code that works out-of-the box for this receivers.   
 
-The idea is to have code that works out-of-the box for this receivers. THE HelloRadio Gyro RX are still not for Sale! What i got are prototypes.  
+
+<b>This are prototype RXs.. not yet for sale!, but for developerts/testers</b> Hopefully will be on the market soon.
+
 
 This code is the Official ELRS v4.0 + Gyro.
 
