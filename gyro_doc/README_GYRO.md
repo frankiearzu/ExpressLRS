@@ -117,6 +117,20 @@ In here, you can setup your RX/Gyro really quickly.   Select your wing-type and 
 
 <b>NOTE: Current LUA only refreshes the current page. All other pages will have the previous values.  Since Quick-Setup changes every setting in the RX, please restart the LUA script to make sure all the values/screens are refreshed.</b> 
 
+### Main Gyro Screen
+
+![gyro-menu](gyro-menu.jpg)
+
+1. Enable Gyro: Turn On/Off the gyro functionality
+2. Status: Give you the version and the IMU detected (MPU6050,LSM6Dxx). "---" if it cant detect the IMU.
+3. Gain Sensitivity for "Rate". Quickly change the sensitivity. If your gyro is too sensitive even when adjusting the master gain Dial/Slider to low, probably you want to lower the sensitivity, if you are at 100% on the Gain dial/slider, and the plane needs more, increase it. Some recomendations:
+
+    - Start low Master Gain (Slider/Dial) 
+    - EDFs/Fast planes you want to start at 0.5x
+    - Slow planes, you might need 1.5x or 2x.
+    - For Gyro Direction testing, you might need to go to 2X to see the surfaces moving!
+
+
 ####  F=Mode Switch Settings
 
 Here you can select what flight mode do you want on each position of the switch. A tipical 3-pos switch will have -100,0,+100.
@@ -136,19 +150,15 @@ In the "Ch Functions" menu you can setup what is the functionality for each chan
 
 The gyro functions are:
 
-* Aileron output
-* Elevator output
-* Rudder output
+* Aileron, Elevator, Rudder 
 * Elevon output  (Elevator + Aileron Mix: Left and Right)
 * V-Tail output  (Elevator + Rudder Mix: Left and Right)
 * Gain - Gain Mode Channel
 * Mode - Flight Mode Switch
 
-IMPORTANT:
-The gyro needs to know who is the master for (Roll, Pitch, Yaw) in the case that you have multiple surfaces of the same type.  The one maked "master" will be the one that the Gyro will use for monitoring the stick movement.
+Master: When you have multiple Aileron or Elevators, the gyro needs to know who is the "master", the others are "Slaves". The one maked "master" will be the one that the Gyro will use for monitoring the stick movement for Roll, Pitch, Yaw.
 
-For each channel you can setup gyro output inversion. A typical setup is having
-two aileron servos where one of the output channels needs to be reversed.
+Invert: If your gyro is correcting in the wrong direction the surface, you need to Invert/Reverse that ch.
 
 For Elevon/Vtail,  first make the Elevator to work on the right direction, then use the Left/Right (exanmple VTail_L or VTail_R) option to invert the secondary function (Ail or Rud).
 
@@ -183,10 +193,12 @@ If you move the stick 1/2 way to the side, the plane will not bank/pitch more th
 
 * Use Rate: it will combine the gyro "Rate" functionalty here for wind regection.  
 
+* Trims:  For Auto-level, if your plane is not flying level, you might need adjust the trim. For pitch, positive(+) is nose up, negative (-) is nose down. For roll, positive is left.
+
 * Limit Pitch/Roll: Maximun angles.. Will not let you pass that angles
 
 * Gains: How stong the gyro should try to return the plane to level.
-  35 is a good start for soft movement, increase the gains to make it go back to level faster when releasing the sticks.
+  35 (35% of total movement) is a good start for soft movement, increase the gains to make it go back to level faster/agresive when releasing the sticks.
 
 
 #### Envelope Mode (Max Angle Envelope protection)
@@ -229,6 +241,8 @@ NOTE: Dont't touch it unless you know what you are doing, and know how to config
 
 ![pid-screen](pid-screen.jpg)
 
+The gyro uses two configurable PIDs, one for rate, one for all angular modes (Level, Envelope, Hold)
+
 * PID-GROUP:   PID for Rate, and PID for Level/Envelpe/Hold
 * PID-Axis: Axis to configure (Roll, Pitch, Yaw)
 * P,I,D values:  NOTE: very carefull with I.
@@ -239,8 +253,11 @@ NOTE: Dont't touch it unless you know what you are doing, and know how to config
 1. Setup your plane as you need
 1. Add Ch9 to be your Flight mode Switch
 1. Add Ch10 to be your Gain (Variable Gain, using my S1 on the TX16),
-You only want variable gain while you setup the Rate/Gyro-ON, after that, you want to set it to fixed this way.
-Once you find the right setting, Note on the top of your Ch10 where it is (+65% for example). Then change it to "source" MAX, and change the "weight" to 65%.  The output should refrect the same as you started. Later on, you can have multiple settings depending on your flight mode , switch, or Thr (See how the Two-Brothers RC videos..High gains on the landings controlled by Thr via a curve and delays)  
+
+
+You only want variable gain while you test flight and adjust the Rate gains for your flying. After you are happy, you want to set it to fixed, so is stored at each model/plane in your radio and no longer use the Dial/Slider.
+
+Once you find the right setting, Note on the top of your Ch10 bar where it is (+65% for example). Then change it to "source" MAX, and change the "weight" to 65%.  The output should refrect the same as you started. Later on, you can have multiple settings depending on your flight mode , switch, or Thr (See how the Two-Brothers RC videos..High gains on the landings controlled by Thr via a curve and delays)  
 
 ![edgetx-mix](edgetx-mix.jpg)
 ![edgetx-fmode](edgetx-fmode.jpg)
