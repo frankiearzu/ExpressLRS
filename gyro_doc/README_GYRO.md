@@ -1,9 +1,9 @@
 ## HISTORY
 
 This code is an adaptation of the original gyro code created by Alex Wigen [Original Code](https://github.com/awigen/ExpressLRS/tree/add-rx-gyro-support).
-A lot of code has been changed from the original to make it easier to setup..  
+A lot of code has been changed from the original to make it easier to setup.  Some parts of code has been taking from other open source project, including Inav, OpenXSensor Gyro.  
 
-I got some of the new RX with Gyro from Hello Radio Sky to play (Thanks Ken!). The idea is to have code that works out-of-the box for this receivers.
+I got some of the new RX with Gyro from Hello Radio Sky to play (Thanks Ken!). The idea is to have code that works out-of-the box for this receivers. THE HelloRadio Gyro RX are still not for Sale! What i got are prototypes.  
 
 This code is the Official ELRS v4.0 + Gyro.
 
@@ -26,16 +26,19 @@ This is an experimental branch not ready for prime time. **Experiment at your ow
   - [x] 1-Click setup of all the setting for the Gyro to work
   - [x] Wing-Type: Normal, 2-Ail, Delta
   - [x] Tail-Type: Normal, VTail, Taileron, Rudder-only
+  - NOTE: Haven't flight tested Delta or Vtail.. so do your ground tests!
 
 - [x] Model Setup
   - [x] Mode Switch Flight-mode Assigments
-  - [x] LUA channel assignments
+  - [x] LUA channel assignments  (what the channel is used for)
   
 - [x] Gyro Settings
   - [x] Fight Mode parametes configurable per flight mode.
-    - [x] Rate/Envelope (SAFE)/Auto-Levl
+    - [x] Rate (Wind Rejection), Envelope (like Spektrum SAFE envelope), and Auto-Levl
     - [x] Gains for Roll,Pitch,Yaw
-    - [x] Envelope Max angle Limits
+    - [x] Max angle Limits for Auto-Level and Envelope
+    - [x] Angle Trims  for Auto-Level and Envelope
+    - [x] Allow to use Rate together with other modes at the same time.
 
   - [x] Stick Calibration
     - [x] Simplified Gyro servo output Limits (center sticks, move sticks)
@@ -45,11 +48,12 @@ This is an experimental branch not ready for prime time. **Experiment at your ow
   - [x] Simplyfied Gyro RX Orientation (Set model level, then vertical)  
 
   - [x] LUA PID adjustment settings (Advanced)
+  - NOTE: Only horizontal orientation right now, with any side face facing the front.  Need to fix this.
 
 - [x] Multiple Flight Modes
-  - [x] Gyro mode: Rate
-  - [x] Gyro mode: Envelope, Max Angle Envelope
-  - [x] Gyro mode: Auto-Level
+  - [x] Gyro mode: Rate (Gyro Wind correction on)
+  - [x] Gyro mode: Envelope  (Max Angle Envelope)
+  - [x] Gyro mode: Auto-Level (Auto-Level + Max angle Envelope)
   - [x] Gyro mode: Launch (Level + pitch up)
   - [ ] Gyro mode: Hover (NOT READY)
 
@@ -59,7 +63,7 @@ This is an experimental branch not ready for prime time. **Experiment at your ow
 
 ## Setup
 
-**IMPORTANT: Use the ELRS.lua from this branch, since the gyro use multiple nested level of menus** it will show in the screen as (r17-gyro). Additionally, when you navigate to a sub-menu, the title will show in the middle. 
+**IMPORTANT: Use the ELRS.lua from this branch, since the gyro use multiple nested level of menus** it will show in the screen as (r17-gyro). Additionally, when you navigate to a sub-menu, the title will show in the middle. Even with that, only the current screen refreshes with changes.. not the other screens. Sometimes is better to just restart the LUA to get the most recent values.
 
 The gyro settings are available through the
 [ExpressLRS Lua script](https://www.expresslrs.org/quick-start/transmitters/lua-howto/).
@@ -87,7 +91,7 @@ On the status, it shows:
 
 The faster way to get things up and running is to:
 
-1. Quick-Setup:  Go to Model-Setup -> Quick Setup to define your plane.
+1. Quick-Setup:  Go to Model-Setup -> Quick Setup to define your plane. This will reset the RX to factory defaults and setup the type of plane you choose.  NOTE: Restart the LUA script.
 1. Turn the Gyro ON in the main gyro page.
 1. Go to Gyro-Setting: Perform Gyro Calibration, Perform RX orientation
 
@@ -100,11 +104,13 @@ The faster way to get things up and running is to:
 
 In here, you can setup your RX/Gyro really quickly.   Select your wing-type and tail-type, then execute.   This will setup complely the model part of the gyro. It will do:
 
-1. Configure All options of the gyro.
+1. Configure All options of the gyro to the default Factory settings.
 1. Configure Ch Functions for the specified plane.
 1. Configure flight-mode switch on Ch9 to have a 3-pos switch:  Off, Rate, Level
 1. Configure Master gain on Ch10.
 1. The only thing missing will be to turn the Gyro ON, do calibration, and validate that the gyro moves the surfaces correctly
+
+<b>NOTE: Current LUA only refreshes the current page. All other pages will have the previous values.  Since Quick-Setup changes every setting in the RX, please restart the LUA script to make sure all the values/screens are refreshed.</b> 
 
 ####  F=Mode Switch Settings
 
@@ -222,7 +228,23 @@ NOTE: Dont't touch it unless you know what you are doing, and know how to config
 * PID-Axis: Axis to configure (Roll, Pitch, Yaw)
 * P,I,D values:  NOTE: very carefull with I.
 
+
+## How is my plane configured in EdgeTX
+
+1. Setup your plane as you need
+1. Add Ch9 to be your Flight mode Switch
+1. Add Ch10 to be your Gain (Variable Gain, using my S1 on the TX16),
+You only want variable gain while you setup the Rate/Gyro-ON, after that, you want to set it to fixed this way.
+Once you find the right setting, Note on the top of your Ch10 where it is (+65% for example). Then change it to "source" MAX, and change the "weight" to 65%.  The output should refrect the same as you started. Later on, you can have multiple settings depending on your flight mode , switch, or Thr (See how the Two-Brothers RC videos..High gains on the landings controlled by Thr via a curve and delays)  
+
+![edgetx-mix](edgetx-mix.jpg)
+![edgetx-fmode](edgetx-fmode.jpg)
+![edgetx-gain](edgetx-gain.jpg)
+
+
 ## Hello Radio Sky Hardware
+
+NOTE: Prototypes for Developers.. not yet for sale!
 
 ![receiver-with-gyroscope](hr_rx.jpeg)
 
