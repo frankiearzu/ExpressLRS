@@ -7,6 +7,8 @@ class MPU_Base
 {
     public:
         static uint8_t m_address;
+        uint8_t     calibrating = false;
+        unsigned long read_errors = 0;
 
         virtual const char * GetMPUName();
         virtual bool initialize();
@@ -33,7 +35,8 @@ class MPU_Base
         void writeRegisterBits(uint8_t registerID, uint8_t mask, uint8_t value);
 
     protected:
-        unsigned long last_gyro_update;
+        unsigned long last_gyro_update = 0;
+        
 
         // Orientation related variables
         bool orientationIsWrong;    // flag to say that orientation is wrong and so avoid any process of raw data

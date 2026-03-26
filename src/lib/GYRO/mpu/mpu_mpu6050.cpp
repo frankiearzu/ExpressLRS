@@ -6,24 +6,7 @@
 #include "logging.h"
 #include "config.h"
 
- // 0: Use Mahony Algorithm to compute Quarterions
- // 1: USE Hardware Dynamic Motion Processor to compute Quarterions
- //         NOTE: When using DMP, it does not seem when flyinf with Auto-Level or Envelope/SAFE
- //               When doing a full roll stick movement, it bank to the max angle, then slowly continue increasing the
- //               bank.. Looks like the motor vibration or something is affecting it.. it does not happen with Mahoney
-#define USE_DMP  0  
-
 #define I2C_MASTER_FREQ_HZ 400000
-
-#if USE_DMP
-#define MPU6050_INT_DPM             (1<<MPU6050_INTERRUPT_DMP_INT_BIT)    // 0x02
-#define MPU6050_INT_FIFO_OFLOW      (1<<MPU6050_INTERRUPT_FIFO_OFLOW_BIT) // 0x10
-
-static uint8_t mpuIntStatus;     // holds actual interrupt status byte from MPU
-//static uint8_t devStatus;        // return status after each device operation (0 = success, !0 = error)
-static uint16_t fifoCount;       // count of all bytes currently in FIFO
-static uint8_t fifoBuffer[64];   // FIFO storage buffer
-#endif
 
 static uint8_t accScaleCode, gyroScaleCode;
 
@@ -37,8 +20,8 @@ bool MPUDev_MPU6050::initialize() {
     m_address = MPU6050_DEFAULT_ADDRESS;
 
     DBGLN("Detecting MPU6050");
-    //Wire.setClock(I2C_MASTER_FREQ_HZ);
     mpu =  new MPU6050();
+    I2Cdev::readTimeout = 1; // 1ms timeout instead of 1000ms (1s)
 
     bool found = false;
     for (int8_t i=0;i<5;i++) {
@@ -60,9 +43,11 @@ bool MPUDev_MPU6050::initialize() {
     accScaleCode = MPU6050_ACCEL_FS_2; // Acceleation 2G
     accScale1G = 16384.0;              // +/-  32768/2 
 
+    // Data in Centi Degres/sec  
+    // Deg/sec = (ADC* (1/16.4)=0.0609756)
     gyroScaleCode = MPU6050_GYRO_FS_2000;  
     gyroScaleRad = 2000.0 / 32768.0 / 180 * PI;  //   multiply adc by this to get rad°/s
-    gyroScaleDeg = 2000.0 / 32768.0 / 100;       //   multiply adc by this to get deg°/s
+    gyroScaleDeg = 2000.0 / 32768.0 / 100;       //   multiply adc by this to get deg°/s  
 
     orientationIsWrong = true;
     return true;
@@ -74,118 +59,25 @@ void MPUDev_MPU6050::start() {
     mpu->reset();
     vTaskDelay(50 * portTICK_PERIOD_MS);
 
-    #if USE_DMP
-        mpu->dmpInitialize();
-    #else
-        mpu->initialize();
-    #endif
+    mpu->initialize();
+
+    //mpu->setDLPFMode(MPU6050_DLPF_BW_256);   // (Default is 256, 8khz sample rate, delay < 1ms)
 
     mpu->setFullScaleAccelRange(accScaleCode);
     mpu->setFullScaleGyroRange(gyroScaleCode);
     mpu->setMasterClockSpeed(MPU6050_CLOCK_DIV_400); // 400kHz that matches Wire Clock
     
-    const rx_config_gyro_calibration_t *offsets;
-    offsets = config.GetAccelCalibration();
-    mpu->setXAccelOffset(offsets->x);
-    mpu->setYAccelOffset(offsets->y);
-    mpu->setZAccelOffset(offsets->z);
-    DBGLN("MPU6050 Acc Offs:  x=%d,y=%d,z=%d",offsets->x, offsets->y,offsets->z);
-
-    offsets = config.GetGyroCalibration();
-    mpu->setXGyroOffset(offsets->x);
-    mpu->setYGyroOffset(offsets->y);
-    mpu->setZGyroOffset(offsets->z);
-    DBGLN("MPU6050 Gyro Offs:  x=%d,y=%d,z=%d",offsets->x, offsets->y,offsets->z);
-
-    vTaskDelay(50 * portTICK_PERIOD_MS);
+    memcpy(&cal_accel_offets,config.GetAccelCalibration(),sizeof(rx_config_gyro_calibration_t));
+    memcpy(&cal_gyro_offsets,config.GetGyroCalibration(),sizeof(rx_config_gyro_calibration_t));
+    DBGLN("MPU6050 Acc Offs:  x=%d,y=%d,z=%d",cal_accel_offets.x, cal_accel_offets.y,cal_accel_offets.z);
+    DBGLN("MPU6050 Gyro Offs:  x=%d,y=%d,z=%d",cal_gyro_offsets.x, cal_gyro_offsets.y,cal_gyro_offsets.z);
 
     setupOrientation();
     //DBGLN("MPU6050: Gyro Calibration");
     //mpu->CalibrateGyro(8); // Calibrate Gyro only that can change with temp
     //DBGLN("MPU6050 Gyro New Offs:  x=%d,y=%d,z=%d",mpu->getXGyroOffset(), mpu->getYGyroOffset(), mpu->getZGyroOffset());
 
-    #if USE_DMP
-        mpu->setDMPEnabled(true);
-    #endif
     DBGLN("MPU6050: Ready");
-}
-
-
-bool MPUDev_MPU6050::read(float accel_rpy[], float angle_rpy[]) {
-    if (orientationIsWrong) return false;
-
-#if USE_DMP
-    mpuIntStatus = mpu->getIntStatus();
-    fifoCount = mpu->getFIFOCount();
-    if ((mpuIntStatus & MPU6050_INT_FIFO_OFLOW) || fifoCount == 1024) 
-    {
-        DBGLN("Resetting gyro FIFO buffer");
-        mpu->resetFIFO();
-        return false;
-    }
-    else if ((mpuIntStatus & MPU6050_INT_DPM) == 0) // 0x02
-    {
-        return false;
-    }
-    
-    int result = mpu->GetCurrentFIFOPacket(fifoBuffer, 28);
-    if (result != 1)
-        return DURATION_IMMEDIATELY;
-
-    mpu->dmpGetGyro(&v_gyro, fifoBuffer);
-    mpu->dmpGetAccel(&v_accel, fifoBuffer);
-    mpu->dmpGetQuaternion(&q, fifoBuffer); // [w, x, y, z] quaternion container
-#else
-    // Regular READ
-    if (!rawRead(&v_accel.x, &v_accel.y, &v_accel.z, 
-            &v_gyro.x,  &v_gyro.y,  &v_gyro.z)) {
-        return false;
-    }
-#endif
-
-    applyOrientation(&v_gyro);
-    
-    float gx = ((float) v_gyro.x) * gyroScaleRad;
-    float gy = ((float) v_gyro.y) * gyroScaleRad;
-    float gz = ((float) v_gyro.z) * gyroScaleRad;
-
-#if USE_DMP
-    applyOrientation(&q);
-#else  
-    applyOrientation(&v_accel);
-
-    // use Mahoney filter
-    static long last = micros(); // Behaves like Global
-    long now = micros();
-    float deltat = ((float)(now - last))* 1.0e-6; //seconds since last update
-    last = now;
-    
-    Mahony_update(v_accel.x, v_accel.y, v_accel.z, 
-                    gx, gy, gz, 
-                    deltat, &q);
-#endif
-    //mpu->dmpGetEuler(euler, &q);
-    GetGravity(&gravity, &q);
-    GetYawPitchRoll(ypr, &q, &gravity);
-
-    // Conver from rad/s -> Degres/s ???
-
-    accel_rpy[0] = gx; // Roll
-    accel_rpy[1] = gy; // Pitch
-    accel_rpy[2] = gz; // Yaw
-    
-    angle_rpy[0] = ypr[2];  // Roll
-    angle_rpy[1] = ypr[1];  // Pitch
-    angle_rpy[2] = ypr[0];  // Yaw
-   
-    
-    #ifdef DEBUG_GYRO_STATS
-    print_gyro_stats();
-    #endif
-
-    // unsigned long time_since_update = micros() - last_gyro_update;
-    last_gyro_update = micros();
-    return true;
 }
 
 bool MPUDev_MPU6050::rawRead(int16_t *ax, int16_t *ay, int16_t *az, int16_t *gx, int16_t *gy, int16_t *gz) 
@@ -209,70 +101,5 @@ bool MPUDev_MPU6050::rawRead(int16_t *ax, int16_t *ay, int16_t *az, int16_t *gx,
 
     return readOk;
 }
-
-bool MPUDev_MPU6050::CalibrateGyro(int8_t loops, rx_config_gyro_calibration_t *offsets)
-{   
-    // Clear old offsets
-    mpu->setXGyroOffset(0);
-    mpu->setYGyroOffset(0);
-    mpu->setZGyroOffset(0);
-    delay(50);
-
-    //MPU_Base::CalibrateGyro(loops,offsets);
-    //mpu->setXGyroOffset(0);
-    //mpu->setYGyroOffset(0);
-    //mpu->setZGyroOffset(0);
-    //return true;
-
-    DBGLN ("Stating Gyro Calibration..");
-    mpu->CalibrateGyro(8);
-    
-    // Get the offsets
-    offsets->x = mpu->getXGyroOffset();
-    offsets->y = mpu->getYGyroOffset();
-    offsets->z = mpu->getZGyroOffset();
-
-    DBGLN ("\nGyro Calibration completed..");
-    DBGLN("MPU605 Gyr Offs:  x=%d,y=%d,z=%d",offsets->x, offsets->y,offsets->z);
-
-    // Clear the offsets
-    mpu->setXGyroOffset(0);
-    mpu->setYGyroOffset(0);
-    mpu->setZGyroOffset(0);
-    delay(50);
-
-    return true;
-}
-
-bool MPUDev_MPU6050::CalibrateAccel(int8_t loops, rx_config_gyro_calibration_t *offsets) {
-    mpu->setXAccelOffset(0);
-    mpu->setYAccelOffset(0);
-    mpu->setZAccelOffset(0);
-    delay(50);
-
-    //MPU_Base::CalibrateAccel(loops,offsets);
-    //mpu->setXAccelOffset(0);
-    //mpu->setYAccelOffset(0);
-    //mpu->setZAccelOffset(0);
-    //if (true) return true;
-
-    DBGLN ("Stating Accelerometer Calibration..");
-    mpu->CalibrateAccel(8);
-
-    offsets->x = mpu->getXAccelOffset();
-    offsets->y = mpu->getYAccelOffset();
-    offsets->z = mpu->getZAccelOffset();
-
-    DBGLN ("\nAccelerometer Calibration completed..");
-    DBGLN("MPU605 Accel Offs:  x=%d,y=%d,z=%d",offsets->x, offsets->y,offsets->z);
-
-    mpu->setXAccelOffset(0);
-    mpu->setYAccelOffset(0);
-    mpu->setZAccelOffset(0);
-    delay(50);
-
-    return true;
-}
-
 
 #endif

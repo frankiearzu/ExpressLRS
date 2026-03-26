@@ -33,6 +33,9 @@ static int8_t orientationList[36][6] = {
 
 bool MPU_Base::initialize() {
     orientationIsWrong = true;
+    memset(&cal_gyro_offsets,0,sizeof(cal_gyro_offsets));
+    memset(&cal_accel_offets,0,sizeof(cal_accel_offets));
+    read_errors = 0;
     return false;
 }
 
@@ -71,6 +74,7 @@ void MPU_Base::writeRegisterBits(uint8_t registerID, uint8_t mask, uint8_t value
 }
 
 void MPU_Base::start() {
+    read_errors = 0; // Reset Errors
 }
 
 uint8_t MPU_Base::event() {
@@ -138,9 +142,61 @@ void MPU_Base::applyOrientation(Quaternion *q)
 }
 
 bool MPU_Base::read(float accel_rpy[], float angle_rpy[]) {
+    if (orientationIsWrong) return false;
+
+    // Regular READ
+    if (!rawRead(&v_accel.x, &v_accel.y, &v_accel.z, 
+            &v_gyro.x,  &v_gyro.y,  &v_gyro.z)) {
+        read_errors++;
+        return false;
+    }
+
+    v_accel.x -= cal_accel_offets.x;
+    v_accel.y -= cal_accel_offets.y;
+    v_accel.z -= cal_accel_offets.z;
+    
+    v_gyro.x -= cal_gyro_offsets.x;
+    v_gyro.y -= cal_gyro_offsets.y;
+    v_gyro.z -= cal_gyro_offsets.z;
+
+    applyOrientation(&v_accel);
+    applyOrientation(&v_gyro);
+    
+    float gx = ((float) v_gyro.x) * gyroScaleRad;
+    float gy = ((float) v_gyro.y) * gyroScaleRad;
+    float gz = ((float) v_gyro.z) * gyroScaleRad;
+
+    // use Mahoney filter
+    static long last = micros(); // Behaves like Global
+    long now = micros();
+    float deltat = ((float)(now - last))* 1.0e-6; //seconds since last update
+    last = now;
+    
+    Mahony_update(v_accel.x, v_accel.y, v_accel.z, 
+                    gx, gy, gz, 
+                    deltat, &q);
+
+    GetGravity(&gravity, &q);
+    GetYawPitchRoll(ypr, &q, &gravity);
+
+    // Conver from rad/s -> Degres/s ???
+
+    accel_rpy[0] = gx; // Roll
+    accel_rpy[1] = gy; // Pitch
+    accel_rpy[2] = gz; // Yaw
+    
+    angle_rpy[0] = ypr[2];  // Roll
+    angle_rpy[1] = ypr[1];  // Pitch
+    angle_rpy[2] = ypr[0];  // Yaw
+   
+    
+    #ifdef DEBUG_GYRO_STATS
+    print_gyro_stats();
+    #endif
+
     // unsigned long time_since_update = micros() - last_gyro_update;
     last_gyro_update = micros();
-    return false;
+    return true;
 }
 
 
@@ -204,7 +260,6 @@ uint8_t MPU_Base::readAndGetGravity(){ // return index of orientation; return 6 
         }
         i =- 1;
     } while (i > 0);
-    
 	return idx;
 }
 
@@ -224,7 +279,8 @@ void MPU_Base::OrientationHorizontalExecute()  //
     mpuOrientationH =  idx ; // save the orientationH 
     
     // Run the calibration, but not saving the offsets
-    calibrate(false);
+    CalibrateAccel(8, &cal_accel_offets);
+    CalibrateGyro(8, &cal_gyro_offsets);
 }
 
 void MPU_Base::OrientationVerticalExecute() {
@@ -356,7 +412,7 @@ void MPU_Base::Mahony_update(float ax, float ay, float az, float gx, float gy, f
 
 bool MPU_Base::CalibrateGyro(int8_t loops, rx_config_gyro_calibration_t *offsets)
 {
-   #define ACCEL_NUM_AVG_SAMPLES	100
+   #define ACCEL_NUM_AVG_SAMPLES	150
 
     int16_t ax,ay,az ;
     int16_t gx,gy,gz ;
@@ -369,13 +425,17 @@ bool MPU_Base::CalibrateGyro(int8_t loops, rx_config_gyro_calibration_t *offsets
     int16_t errors = 0;
 
     DBGLN ("Stating Gyro Calibration..");
+    calibrating = true;
 
 	for (int inx = 0; inx < ACCEL_NUM_AVG_SAMPLES; inx++){
         DBG(".");
-        delayMicroseconds(2000); // take 8 msec with dlpf = 20 ; 1900us when BW = 188
+        delayMicroseconds(1000); // take 8 msec with dlpf = 20 ; 1900us when BW = 188
         if (!rawRead(&ax,&ay,&az,&gx,&gy,&gz)) {
-            errors++;
-            continue;
+            delayMicroseconds(100);
+            if (!rawRead(&ax,&ay,&az,&gx,&gy,&gz)) {
+                errors++;
+                continue;
+            }
         }
 
         gxAccum += (int32_t) gx;
@@ -400,11 +460,13 @@ bool MPU_Base::CalibrateGyro(int8_t loops, rx_config_gyro_calibration_t *offsets
     #define MAX_GYRO_DIFF 200
     if (((gxMax - gxMin) > MAX_GYRO_DIFF) or ((gyMax - gyMin) > MAX_GYRO_DIFF) or ((gzMax - gzMin) > MAX_GYRO_DIFF)) {
         DBGLN ("Error in IMU calibration: to much variations in the gyro values");
+        calibrating = false;
         return false;
     }
 
-    if (errors > 10) {
-        DBGLN("Too many read errors during calibration");
+    if (errors > 50) {
+        DBGLN("Too many read errors during calibration  (Errors=%d)",errors);
+        calibrating = false;
         return false;
     }
 
@@ -417,7 +479,7 @@ bool MPU_Base::CalibrateGyro(int8_t loops, rx_config_gyro_calibration_t *offsets
 	offsets->z = (int16_t)(gzAccum);
  
     DBGLN("Gyr Offs:  x=%d,y=%d,z=%d",offsets->x, offsets->y,offsets->z);
-
+    calibrating = false;
     return true;
 }
 
@@ -433,16 +495,29 @@ bool MPU_Base::CalibrateAccel(int8_t loops, rx_config_gyro_calibration_t *offset
     axMax = ayMax = azMax  = -60000;  
     
     DBGLN ("Stating Accelerometer Calibration..");
+    calibrating = true;
 
     for (int inx = 0; inx < ACCEL_NUM_AVG_SAMPLES; inx++){
-        DBG(".");
-        delayMicroseconds(2000); // take 8 msec with dlpf = 20 ; 1900us when BW = 188
-        
+        DBG(".");      
+        delayMicroseconds(1000); // take 8 msec with dlpf = 20 ; 1900us when BW = 188
         if (!rawRead(&ax,&ay,&az,&gx,&gy,&gz)) {
-            errors++; continue;
+            delayMicroseconds(100);
+            if (!rawRead(&ax,&ay,&az,&gx,&gy,&gz)) {
+                errors++;
+                continue;
+            }
         }
+
         // Remove Gravity
-        az -= accScale1G;
+        switch (mpuOrientationH) {
+            case 0:
+            case 1:  ax -= accScale1G; break;
+            case 2:
+            case 3:  ay -= accScale1G; break;
+            case 4:
+            case 5:  az -= accScale1G; break;
+        }
+       
 
         axAccum += (int32_t) ax;
         ayAccum += (int32_t) ay;
@@ -468,11 +543,13 @@ bool MPU_Base::CalibrateAccel(int8_t loops, rx_config_gyro_calibration_t *offset
     #define MAX_ACC_DIFF 500
     if (((axMax - axMin) > MAX_ACC_DIFF) or ((ayMax - ayMin) > MAX_ACC_DIFF) or ((azMax - azMin) > MAX_ACC_DIFF)) {
         DBGLN ("Error in IMU calibration: to much variations in the acceleration values: x=%d y=%d z=%d", axMax - axMin, ayMax - ayMin , azMax - azMin);
+        calibrating = false;
         return false;
     }
 
-    if (errors > 10) {
-        DBGLN("Too many read errors during calibration");
+    if (errors > 50) {
+        DBGLN("Too many read errors during calibration  (Errors=%d)",errors);
+        calibrating = false;
         return false;
     }
 
@@ -486,7 +563,7 @@ bool MPU_Base::CalibrateAccel(int8_t loops, rx_config_gyro_calibration_t *offset
 	offsets->z = (int16_t)(azAccum);
 
     DBGLN("Acc Offs:  x=%d,y=%d,z=%d",offsets->x, offsets->y,offsets->z);
-
+    calibrating = false;
     return true;
 }
 

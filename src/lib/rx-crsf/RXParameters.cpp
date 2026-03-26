@@ -38,7 +38,7 @@ static char pwmModes[] = "50Hz;60Hz;100Hz;160Hz;333Hz;400Hz;10kHzDuty;On/Off;DSh
 #if defined(HAS_GYRO)
 static char gyroOffOn[] = "Off;On"; // Off-ON
 //  needs to match gyro_status_t
-static char *gyroStatus[] = {"Off","Not Detected","Need Cali","Running"};
+static char *gyroStatus[] = {"Off","IMU Not Detected","Need RX-Orientation","Running"};
 
 // Orientation Names in MPU
 extern const char* mpuOrientationNames[];
@@ -55,6 +55,8 @@ static const char gyroPidGroup[] = "Rate;Level";
 static const char gyroAxis[] = "Roll;Pitch;Yaw";
 
 static char gyroStatusStr[30]; // Display Status + Version
+static char gyroIMUStatusStr[30]; // Display Gyro and Errors
+static char gyroIMUErrorStr[10];
 
 static const char gyroRxOrientations[] = 
     {"QRC Dn(X+);QRC Up(X-);Pins Up(Y+);Pins Dn(Y-);Lbl Up(Z+);Lbl Dn(Z-);WRONG;WRONG"};
@@ -174,6 +176,11 @@ static selectionParameter luaGyroEnabled = {
 
 static stringParameter luaGyroStatus = {
     {"Status", CRSF_INFO},
+    "" // value
+};
+
+static stringParameter luaGyroIMUStatus = {
+    {"IMUStatus", CRSF_INFO},
     "" // value
 };
 
@@ -1442,11 +1449,11 @@ void RXEndpoint::registerParameters()
       registerParameter(&luaGyroEnabled, [&] (propertiesCommon* item, uint8_t arg) {
         config.SetGyroEnabled((bool) arg);
         gyro.reload();
-        // Update Gyro Status 
-        setStringValue(&luaGyroStatus,gyroStatus[gyro.getStatus()]);
+        updateParameters(); // Update Everything
       }, luaGyroMainFolder.common.id);
 
       registerParameter(&luaGyroStatus, nullptr, luaGyroMainFolder.common.id);
+      registerParameter(&luaGyroIMUStatus, nullptr, luaGyroMainFolder.common.id);
 
       registerParameter(&luaGyroGainFactor, [&] (propertiesCommon* item, uint8_t arg) {
         config.SetGyroGainFactor((gyro_gain_factor_t) arg);
@@ -1612,6 +1619,14 @@ static void updateBindModeLabel()
     luaBindMode.common.name = "Enter Bind Mode";
 }
 
+static void getFormatedGyroStatus(char *buffer) {
+    sprintf(buffer, "Status (v %2.2f / %d/ %s)",GYRO_CODE_VERSION, config.GetGyroConfigVersion(), gyro.getMPUName());
+}
+
+static void getFormatedGyroIMUStatus(char *buffer) {
+    sprintf(buffer, "IMU (%s) r-err", gyro.getMPUName());
+}
+
 void RXEndpoint::updateParameters()
 {
   setTextSelectionValue(&luaSerialProtocol, config.GetSerialProtocol());
@@ -1652,10 +1667,16 @@ void RXEndpoint::updateParameters()
 
     auto gyroEnabled = config.GetGyroEnabled();
     setTextSelectionValue(&luaGyroEnabled, gyroEnabled);
-    const char * mpuId = gyro.getMPUName();
-    sprintf(gyroStatusStr,"Status (v %2.2f /%d / %s)",GYRO_CODE_VERSION, config.GetGyroConfigVersion(), mpuId);
+    
+    getFormatedGyroStatus(gyroStatusStr);
     luaGyroStatus.common.name = gyroStatusStr; // Change Title
     setStringValue(&luaGyroStatus,gyroStatus[gyro.getStatus()]);
+
+    getFormatedGyroIMUStatus(gyroIMUStatusStr);
+    sprintf(gyroIMUErrorStr, "%ld", gyro.getIMUReadErrors());
+    luaGyroIMUStatus.common.name = gyroIMUStatusStr; // Change Title
+    setStringValue(&luaGyroIMUStatus,gyroIMUErrorStr);
+
     setTextSelectionValue(&luaGyroGainFactor,config.GetGyroGainFactor());
 
     const rx_config_pwm_limits_t *limits = config.GetPwmChannelLimits(luaMappingChannelOut.properties.u.value - 1);

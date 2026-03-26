@@ -132,6 +132,13 @@ static const struct {
     {HARDWARE_vtx_amp_vpd_100mW, "vtx_amp_vpd_100mW", ARRAY},
     {HARDWARE_vtx_amp_pwm_25mW, "vtx_amp_pwm_25mW", ARRAY},
     {HARDWARE_vtx_amp_pwm_100mW, "vtx_amp_pwm_100mW", ARRAY},
+
+    {HARDWARE_spi_sck, "spi_sck", INT},         // NEW SPI DEVICES
+    {HARDWARE_spi_busy, "spi_busy", INT},
+    {HARDWARE_spi_nss, "spi_nss", INT},
+    {HARDWARE_spi_mosi, "spi_mosi", INT},
+    {HARDWARE_spi_miso, "spi_miso", INT},
+    {HARDWARE_spi_int, "spi_int", INT},
 };
 
 typedef union {

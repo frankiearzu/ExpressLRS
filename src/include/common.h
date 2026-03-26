@@ -217,6 +217,16 @@ enum eServoOutputMode : uint8_t
     somPwm,         // 13: true PWM mode (NOT SUPPORTED)
     somSerial1RX,   // 14: secondary Serial RX
     somSerial1TX,   // 15: secondary Serial TX
+
+    //SPI DEVICES
+    somSCK,         // 16: SPI clock signal
+    somMISO,        // 17: SPI MISO
+    somMOSI,        // 18: SPI MOSI
+    somRST,         // 19: SPI 
+    somNSS,         // 20: SPI
+    somDIO1,        // 21: SPI
+    somBUSY,        // 22: SPI
+    somINT,         // 23: SPI
 };
 
 enum eServoOutputFailsafeMode : uint8_t

@@ -45,8 +45,6 @@ static const char* STR_gyroAxis[] = {"Roll","Pitch","Yaw"};
 
 static Mode_Base*  mode_controllers [GYRO_MODE_LAST_ACTIVE+1] = { };
 static bool        first_start = true;
-static long        IMU_read_errors = 0;
-
 
 #ifdef GYRO_BOOT_JITTER
 static uint8_t boot_jitter_times = 0;
@@ -263,7 +261,7 @@ void Gyro::detect_gain(uint16_t us)
 void Gyro::mixerInput()
 {
     // We get called before the gyro configuration is initialized
-    if (!initialized || learn_state != GYRO_LEARN_OFF) return;
+    if (!initialized || learn_state != GYRO_LEARN_OFF || mpuDev->calibrating) return;
 
 
     if ((micros() - pid_delay) < 1000 ) return; // ~1k PID loop
@@ -321,7 +319,7 @@ void Gyro::mixerOutput(uint8_t ch, uint16_t *us)
     }
 
     // We get called before the gyro configuration is initialized
-    if (!initialized) return;
+    if (!initialized || mpuDev->calibrating) return;
    
     if (output_mode == FN_NONE)
         return;
@@ -383,27 +381,30 @@ void Gyro::send_telemetry()
     crsfRouter.deliverMessageTo(CRSF_ADDRESS_CRSF_TRANSMITTER, &crsfFlightMode.h);
 }
 
-long Gyro::getIMUReadErrors() {
-    return IMU_read_errors;
+unsigned long Gyro::getIMUReadErrors() {
+    return (mpuDev==nullptr)?0:mpuDev->read_errors;
 }
 
 int Gyro::tick()
 {
-    static long tel_delay = 0; // Behaves like Global
+    static unsigned long tel_delay = 0; // Behaves like Global
 
-    if (!initialized) return 1000; // come back in 1000 ms if not initialized
+    if (!initialized ||
+        mpuDev->calibrating) { 
+        //DBGLN("Gyro not Ready or Calibrating.. return in 1s");
+        return 1000; // come back in 1000 ms if not initialized
+    }
 
     if (mpuDev->read(acc_rpy, angle_rpy)) {
         last_update = micros();
         data_ready = true;
-
 
         if ((micros() - tel_delay) > 300000 ) { // 300 ms cycle
             tel_delay = micros();
             send_telemetry();
         }
     } else {
-        IMU_read_errors++;
+        // Read Error, try again inmediatly
         return DURATION_IMMEDIATELY;
     }
 

@@ -16,6 +16,7 @@
 #endif
 
 extern boolean i2c_enabled;
+extern boolean spi_enabled;
 
 Gyro gyro = Gyro();
 static MPU_Base *mpuDev;
@@ -24,6 +25,7 @@ static bool initialize()
 {
     mpuDev = nullptr;
 
+    // I2C Gyros
     if (i2c_enabled)
     {
 #ifdef GYRO_DEVICE_MPU6050
@@ -37,7 +39,11 @@ static bool initialize()
             } 
         }
 #endif
-#ifdef GYRO_DEVICE_LSM6DXX
+    }
+
+    // SPI Gyros
+    if(spi_enabled) {
+#ifdef GYRO_DEVICE_LSM6DXX 
         if (mpuDev == nullptr)
         {
             mpuDev = new MPUDev_LSM6DXX();
@@ -48,7 +54,7 @@ static bool initialize()
             }
         }
 #endif
-    }
+    } // if SPI
 
     if (mpuDev==nullptr) {
          DBGLN("devGyro.init(): Gyro Not Detected");

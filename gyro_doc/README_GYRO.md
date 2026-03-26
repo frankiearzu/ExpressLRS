@@ -131,7 +131,7 @@ In here, you can setup your RX/Gyro really quickly.   Select your wing-type and 
     - For Gyro Direction testing, you might need to go to 2X to see the surfaces moving!
 
 
-####  F=Mode Switch Settings
+####  F-Mode Switch Settings
 
 Here you can select what flight mode do you want on each position of the switch. A tipical 3-pos switch will have -100,0,+100.
 
@@ -175,7 +175,7 @@ select the active stabilization mode.
 
 #### Rate Mode
 
-Also called wind-regection mode.. it will try to correct quick rotational movements of the plane. The gyro will quckly react and go back to center.
+Also called wind-regection mode.. it will try to correct quick rotational movements of the plane. The gyro will quckly react and try to keep the plane in the same attitude as it was before the wind try to affect it. 
 
 ![gyro-fmode-rate](fmode-rate-settings.jpg)
 

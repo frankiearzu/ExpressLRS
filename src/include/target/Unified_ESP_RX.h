@@ -73,6 +73,15 @@
 #define GPIO_PIN_SCL hardware_pin(HARDWARE_i2c_scl)
 #define GPIO_PIN_SDA hardware_pin(HARDWARE_i2c_sda)
 
+// SPI DEVICES
+#define GPIO_PIN_SPI_SCK hardware_pin(HARDWARE_spi_sck)
+#define GPIO_PIN_SPI_MISO hardware_pin(HARDWARE_spi_miso)
+#define GPIO_PIN_SPI_MOSI hardware_pin(HARDWARE_spi_mosi)
+#define GPIO_PIN_SPI_NSS hardware_pin(HARDWARE_spi_nss)
+#define GPIO_PIN_SPI_RST hardware_pin(HARDWARE_spi_rst)
+#define GPIO_PIN_SPI_BUSY hardware_pin(HARDWARE_spi_busy)
+#define GPIO_PIN_SPI_INT hardware_pin(HARDWARE_spi_int)
+
 // PWM
 #define GPIO_PIN_PWM_OUTPUTS hardware_i16_array(HARDWARE_pwm_outputs)
 #define GPIO_PIN_PWM_OUTPUTS_COUNT hardware_int(HARDWARE_pwm_outputs_count)

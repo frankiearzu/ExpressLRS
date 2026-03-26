@@ -858,6 +858,59 @@ const HARDWARE_SCHEMA = [
             },
         ]
     },
+    {
+        title: 'SPI', rows: [
+            {
+                id: 'spi_nss',
+                label: 'SPI NSS pin',
+                type: 'uint',
+                icon: 'output',
+                desc: 'SPI chip select for SPI devices'
+            },
+            {
+                id: 'spi_sck',
+                label: 'SPI SCK pin',
+                type: 'uint',
+                icon: 'output',
+                desc: 'Clock pin on SPI devices'
+            },
+            {
+                id: 'spi_miso',
+                label: 'SPI MISO pin',
+                type: 'uint',
+                icon: 'input',
+                desc: 'MISO pin on SPI Devices'
+            },
+            {
+                id: 'spi_mosi',
+                label: 'SPI MOSI pin',
+                type: 'uint',
+                icon: 'output',
+                desc: 'MOSI pin on SPI Devices'
+            },
+            {
+                id: 'spi_rst',
+                label: 'SPI MOSI pin',
+                type: 'uint',
+                icon: 'output',
+                desc: 'RST pin on SPI Devices'
+            },
+            {
+                id: 'spi_busy',
+                label: 'SPI MOSI pin',
+                type: 'uint',
+                icon: 'output',
+                desc: 'BUSY pin on SPI Devices'
+            },
+            {
+                id: 'spi_int',
+                label: 'SPI MOSI pin',
+                type: 'uint',
+                icon: 'output',
+                desc: 'INT pin on SPI Devices'
+            },
+        ]
+    },
     /* /FEATURE: NOT IS_TX */
 ];
 

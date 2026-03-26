@@ -11,7 +11,7 @@
 #include "mpu/mpu.h"
 #include "modes/mode.h"
 
-#define GYRO_CODE_VERSION   1.05
+#define GYRO_CODE_VERSION   1.06
 
 #define GYRO_US_MIN 988
 #define GYRO_US_MID 1500
@@ -51,7 +51,7 @@ public:
     void StickCenterCalibration();
     void StickLimitCalibration(bool done);
 
-    long getIMUReadErrors();
+    unsigned long getIMUReadErrors();
     MPU_Base *mpuDev = nullptr;
 
     float master_gain = 1.0;

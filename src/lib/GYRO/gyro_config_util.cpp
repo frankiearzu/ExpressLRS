@@ -1,6 +1,7 @@
 #include "config.h"
 #include "gyro.h"
 
+#if defined(HAS_GYRO)
 
 static char *wingTypeName[]={"Empty","Normal","2-Ail","Delta"};
 static char *tailTypeName[]={"Empty","Normal","V-Tail","Taileron","Rud-Only"};
@@ -127,4 +128,4 @@ bool gyroIsVisible(gyro_mode_t fm, gyro_ui_vibility_t category) {
     return ret;
 }
 
-
+#endif
