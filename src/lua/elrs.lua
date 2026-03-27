@@ -6,7 +6,7 @@
 ---- # License GPLv2: http://www.gnu.org/licenses/gpl-2.0.html               #
 ---- #                                                                       #
 ---- #########################################################################
-local EXITVER = "-- EXIT (Lua r17_gyro) --"
+local EXITVER = "-- EXIT (Lua r17_gyro_2) --"
 local deviceId = 0xEE
 local handsetId = 0xEF
 local deviceName = nil
@@ -194,6 +194,35 @@ local function reloadCurField()
   loadQ[#loadQ+1] = field.id
 end
 
+local function reloadRelatedFields(field)
+  -- Reload the parent folder to update the description
+  if field.parent then
+    loadQ[#loadQ+1] = field.parent
+    fields[field.parent].name = nil
+  end
+
+  -- Reload all editable fields at the same level as well as the parent item
+  for fieldId = fields_count, 1, -1 do
+    -- Skip this field, will be added to end
+    local fldTest = fields[fieldId]
+    local fldType = fldTest.type or 99 -- type could be nil if still loading
+    if fieldId ~= field.id
+      and fldTest.parent == field.parent
+      and (fldType < 11 or fldType == 12) then -- ignores FOLDER/COMMAND/devices/EXIT
+      fldTest.nc = true -- "no cache" the options
+      loadQ[#loadQ+1] = fieldId
+    end
+  end
+
+  -- Reload this field
+  loadQ[#loadQ+1] = field.id
+  -- with a short delay to allow the module EEPROM to commit
+  fieldTimeout = getTime() + 20
+  -- Also push the next bad/good update further out
+  linkstatTimeout = fieldTimeout + 100
+end
+
+
 -- UINT8/INT8/UINT16/INT16 + FLOAT + TEXTSELECT
 local function fieldUnsignedLoad(field, data, offset, size, unitoffset)
   field.value = fieldGetValue(data, offset, size)
@@ -314,7 +343,6 @@ local function fieldFolderOpen(field)
   currentFolderName = field.name
 
   local backFld = fields[#fields]
-  --backFld.type = 14
   backFld.name = "----BACK----"
   -- Store the lineIndex and pageOffset to return to in the backFld
   backFld.li = lineIndex
@@ -326,6 +354,12 @@ local function fieldFolderOpen(field)
 
   lineIndex = 1
   pageOffset = 0
+
+  -- Refresh current Folder, only if sub-menu
+  if (backFld.parent) then
+    --print(string.format("Reloading Fields=%d",currentFolderId))    
+    reloadRelatedFields(fields[currentFolderId])
+  end
 end
 
 local function fieldFolderDeviceOpen(field)
@@ -383,7 +417,6 @@ local function fieldBackExec(field)
     currentFolderId = nil
     currentFolderName = nil
   else -- Executing EXIT 
-    --currentFolderName = nil
     exitscript = 1
   end
 end
@@ -669,34 +702,6 @@ local function lcd_warn()
   lcd.drawText(LCD_W/2, textSize*5, "[OK]", BLINK + INVERS + CENTER)
 end
 
-local function reloadRelatedFields(field)
-  -- Reload the parent folder to update the description
-  if field.parent then
-    loadQ[#loadQ+1] = field.parent
-    fields[field.parent].name = nil
-  end
-
-  -- Reload all editable fields at the same level as well as the parent item
-  for fieldId = fields_count, 1, -1 do
-    -- Skip this field, will be added to end
-    local fldTest = fields[fieldId]
-    local fldType = fldTest.type or 99 -- type could be nil if still loading
-    if fieldId ~= field.id
-      and fldTest.parent == field.parent
-      and (fldType < 11 or fldType == 12) then -- ignores FOLDER/COMMAND/devices/EXIT
-      fldTest.nc = true -- "no cache" the options
-      loadQ[#loadQ+1] = fieldId
-    end
-  end
-
-  -- Reload this field
-  loadQ[#loadQ+1] = field.id
-  -- with a short delay to allow the module EEPROM to commit
-  fieldTimeout = getTime() + 20
-  -- Also push the next bad/good update further out
-  linkstatTimeout = fieldTimeout + 100
-end
-
 local function handleDevicePageEvent(event)
   if #fields == 0 then --if there is no field yet
     return
@@ -973,7 +978,7 @@ local function run(event, touchState)
       backFromPopup = 0
       local field = getField(lineIndex)
       if (field and currentFolderId) then
-        -- returning from command execution on a sub-folder
+        -- Farzu: returning from command execution on a sub-folder
         -- refresh the data
         reloadRelatedFields(field)
       end
