@@ -80,7 +80,7 @@ typedef enum {
     LSM6DXX_VAL_CTRL3_C_SIM = 0,              // (bit 3) SPI 4-wire interface mode
     LSM6DXX_VAL_CTRL3_C_IF_INC = BIT(2),      // (bit 2) auto-increment address for burst reads
     LSM6DXX_VAL_CTRL4_C_DRDY_MASK = BIT(3),   // (bit 3) data ready interrupt mask
-    LSM6DXX_VAL_CTRL4_C_DRDY_ENABLED = BIT(3),   // (bit 3) data ready interrupt mask
+    LSM6DXX_VAL_CTRL4_C_DRDY_ENABLED = BIT(3),   // (bit 3) data ready interrupt
     LSM6DXX_VAL_CTRL4_C_I2C_DISABLE = BIT(2), // (bit 2) disable I2C interface
     LSM6DXX_VAL_CTRL4_C_SPI_DISABLE = BIT(3), // (bit 3) disable SPI interface
     LSM6DXX_VAL_CTRL4_C_LPF1_SEL_G = BIT(1),  // (bit 1) enable gyro LPF1

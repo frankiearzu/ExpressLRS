@@ -17,10 +17,10 @@ const char * MPUDev_MPU6050::GetMPUName() {
 
 bool MPUDev_MPU6050::initialize() {
     MPU_Base::initialize();
-    m_address = MPU6050_DEFAULT_ADDRESS;
-
+    m_address = MPU6050_DEFAULT_ADDRESS;     // Defaults is MPU6050_ADDRESS_AD0_LOW (0x68)
+   
     DBGLN("Detecting MPU6050");
-    mpu =  new MPU6050();
+    mpu =  new MPU6050(m_address);
     I2Cdev::readTimeout = 1; // 1ms timeout instead of 1000ms (1s)
 
     bool found = false;
@@ -30,7 +30,25 @@ bool MPUDev_MPU6050::initialize() {
             found = true;
             break;
         }
-        vTaskDelay(50 * portTICK_PERIOD_MS);
+        delay(50);
+    }
+
+    if (!found) {
+        mpu = nullptr;
+        DBGLN("Detecting MPU6050 (Alt Address)");
+        m_address = MPU6050_ADDRESS_AD0_HIGH;    // Use the alternate address (0x69)
+        mpu =  new MPU6050(m_address);
+        I2Cdev::readTimeout = 1; // 1ms timeout instead of 1000ms (1s)
+
+        found = false;
+        for (int8_t i=0;i<5;i++) {
+            if (mpu->testConnection()) 
+            {
+                found = true;
+                break;
+            }
+            delay(50);
+        }
     }
 
     if (!found) 
@@ -61,11 +79,13 @@ void MPUDev_MPU6050::start() {
 
     mpu->initialize();
 
-    //mpu->setDLPFMode(MPU6050_DLPF_BW_256);   // (Default is 256, 8khz sample rate, delay < 1ms)
-
     mpu->setFullScaleAccelRange(accScaleCode);
     mpu->setFullScaleGyroRange(gyroScaleCode);
     mpu->setMasterClockSpeed(MPU6050_CLOCK_DIV_400); // 400kHz that matches Wire Clock
+
+    //Set frequency filters
+    //mpu->setDLPFMode(MPU6050_DLPF_BW_256);   // LPF (Default is 256Hz, 8khz sample rate, delay < 1ms)
+    //mpu->setDHPFMode(MPU6050_DHPF_RESET);    // HBPF: (Default, No high filter)
     
     memcpy(&cal_accel_offets,config.GetAccelCalibration(),sizeof(rx_config_gyro_calibration_t));
     memcpy(&cal_gyro_offsets,config.GetGyroCalibration(),sizeof(rx_config_gyro_calibration_t));

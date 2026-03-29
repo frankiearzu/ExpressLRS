@@ -236,7 +236,6 @@ static void lsm6dxxConfig_SPI(MPU_Base *mpu) {
     // Configure gyro: ODR 6664Hz (匹配I2C lsm6dxxConfig), ±2000dps
     // 0xAC = 1010_1100: ODR 6664Hz (0xA) + 2000dps (0x3)
     writeReg(LSM6DXX_REG_CTRL2_G,
-        (1 << 7) |  // ??
         (LSM6DXX_VAL_CTRL2_G_ODR6664 << 4) |  // 6664hz ODR
         (LSM6DXX_VAL_CTRL2_G_2000DPS << 2));   // 2000dps scale
     //DBGLN("SPI DEV CTRL2_G written: 0xAC");
@@ -245,6 +244,32 @@ static void lsm6dxxConfig_SPI(MPU_Base *mpu) {
     writeReg(LSM6DXX_REG_CTRL3_C, 
                 LSM6DXX_VAL_CTRL3_C_IF_INC); // IF_INC enabled
     DBGLN("SPI DEV CTRL3_C configured: 0x04");
+
+    // Configure control register 4
+    writeReg(LSM6DXX_REG_CTRL4_C,  
+        (LSM6DXX_VAL_CTRL4_C_DRDY_ENABLED | // enable accelerometer high performane mode;
+         LSM6DXX_VAL_CTRL4_C_I2C_DISABLE  | // Disable I2C
+         LSM6DXX_VAL_CTRL4_C_LPF1_SEL_G));  // enable gyro LPF1
+
+    // Configure control register 6 for Low Pass Filter (LPF1)
+    writeReg(LSM6DXX_REG_CTRL6_C,
+        (LSM6DXX_VAL_CTRL6_C_XL_HM_MODE |  // High Performance Mode
+         LSM6DXX_VAL_CTRL6_C_FTYPE_300HZ   // set gyro LPF1 cutoff 335.5Hz
+        ));
+
+    // NEW: Configure control register 7
+    // Set High Pass Filters for Accelerometer
+    // Not needed
+    //writeReg(LSM6DXX_REG_CTRL7_G, 
+    //    (LSM6DXX_VAL_CTRL7_G_HP_EN_G |    // enable gyro high-pass filter
+    //     LSM6DXX_VAL_CTRL7_G_HPM_G_16));  // gyro HPF cutoff 16mHz
+
+
+    // Configure control register 9
+    if(lsm6dID == LSM6DSO_CHIP_ID) {
+        writeReg(LSM6DXX_REG_CTRL9_XL, 
+            LSM6DXX_VAL_CTRL9_XL_I3C_DISABLE);  // disable I3C interface
+    }
 
     // Verify writes
     uint8_t ctrl1 = readReg(LSM6DXX_REG_CTRL1_XL);
