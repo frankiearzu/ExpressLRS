@@ -191,7 +191,7 @@ typedef struct __attribute__((packed)) {
 } rx_config_gyro_calibration_t;
 
 constexpr uint8_t GYRO_MAX_CHANNELS = 16;
-constexpr uint8_t GYRO_CONFIG_VERSION = 2;
+constexpr uint8_t GYRO_CONFIG_VERSION = 3;
 
 typedef struct __attribute__((packed)) {
     uint8_t  configVersion;

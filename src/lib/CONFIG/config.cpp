@@ -1325,10 +1325,13 @@ void RxConfig::GyroCheckUpgrade()
     if (version < 2 || version > GYRO_CONFIG_VERSION)
     {
         SetGyroDefaults(false);
+    } else  // After here will for valid gyro updates
+    if (version == 2) {
+      gyroUpgrade2_to_3();
     }
 
-    // After here will be the placeholder for valid gyro updates
     SetGyroConfigVersion(GYRO_CONFIG_VERSION);
+    Commit();
 }
 
 void

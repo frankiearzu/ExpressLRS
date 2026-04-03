@@ -128,6 +128,21 @@ bool gyroIsVisible(gyro_mode_t fm, gyro_ui_vibility_t category) {
     return ret;
 }
 
+ void gyroUpgrade2_to_3()
+ {
+      for (int fm=GYRO_MODE_RATE; fm <= GYRO_MODE_LAST_ACTIVE; fm++) { // Skip Gyro OFF, 1 based 
+        rx_config_gyro_fmode_t tmp;
+        
+        memcpy(&tmp,config.GetGyroFMode((gyro_mode_t) fm), sizeof(rx_config_gyro_fmode_t));
+        
+        // For Auto-Level/Launch
+        tmp.val.trimPitch   = (fm == GYRO_MODE_LAUNCH)?10:0;
+        tmp.val.trimRoll    = 0;
+
+        config.SetGyroFModeRaw((gyro_mode_t) fm, tmp.raw);
+    }
+ }
+
 /* encode/decode negative numbers in 6 bits*/
 int8_t gyro_trim_decode(int8_t n) 
 {

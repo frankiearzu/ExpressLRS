@@ -99,6 +99,7 @@ void configure_pid_gains(PID* pid, const rx_config_gyro_PID_t* pid_params, int8_
 
 
 void gyroSetConfigDefaults();
+void gyroUpgrade2_to_3();
 bool gyroIsVisible(gyro_mode_t fm, gyro_ui_vibility_t category);
 
 extern int8_t gyro_trim_encode(int8_t n);
