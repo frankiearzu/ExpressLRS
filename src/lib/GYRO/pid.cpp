@@ -42,6 +42,7 @@ void PID::reset()
     pv = 0;
     output = 0;
     Dout = 0;
+    Iout = 0;
     last_update = micros();
     prevMeasurement=0;
 }

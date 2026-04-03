@@ -49,8 +49,8 @@ void LevelController::calculate_pid(float input_rpy[], float acc_rpy[], float an
     ignore_input[GYRO_AXIS_ROLL] = ignore_input[GYRO_AXIS_PITCH] = true;
 
     // Get Pitch/Roll angles adjusted to the Level trims  (global + current senttings)
-    float pitch_angle = - ang_rpy[GYRO_AXIS_PITCH] + degToRad((int8_t) fm_settings.val.trimPitch);
-    float roll_angle  =   ang_rpy[GYRO_AXIS_ROLL]  + degToRad((int8_t) fm_settings.val.trimRoll);
+    float pitch_angle = - ang_rpy[GYRO_AXIS_PITCH] + degToRad(gyro_trim_decode(fm_settings.val.trimPitch));
+    float roll_angle  =   ang_rpy[GYRO_AXIS_ROLL]  + degToRad(gyro_trim_decode(fm_settings.val.trimRoll));
 
     if (isInverted(ang_rpy)) {
         // The pitch seems to be reported the same even when it is inverted in the roll axis

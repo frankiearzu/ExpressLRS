@@ -161,13 +161,13 @@ typedef union __attribute__((packed)) {
                  maxAnglePitch:7, // Max 90
                  maxAngleRoll:7,
 
-                 trimPitch:5, // Max 32
-                 trimRoll:5,
+                 trimPitch:6, // Max +- 31
+                 trimRoll:6,
 
                  useRate:1,
                  stickPri:2,  // Max 4
 
-                 unused:13;
+                 unused:11;
     } val;
     uint64_t raw;
 } rx_config_gyro_fmode_t;

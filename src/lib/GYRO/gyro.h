@@ -11,7 +11,7 @@
 #include "mpu/mpu.h"
 #include "modes/mode.h"
 
-#define GYRO_CODE_VERSION   1.06
+#define GYRO_CODE_VERSION   1.07
 
 #define GYRO_US_MIN 988
 #define GYRO_US_MID 1500
@@ -100,4 +100,7 @@ void configure_pid_gains(PID* pid, const rx_config_gyro_PID_t* pid_params, int8_
 
 void gyroSetConfigDefaults();
 bool gyroIsVisible(gyro_mode_t fm, gyro_ui_vibility_t category);
+
+extern int8_t gyro_trim_encode(int8_t n);
+extern int8_t gyro_trim_decode(int8_t n);
 #endif

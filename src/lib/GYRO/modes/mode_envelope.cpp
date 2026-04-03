@@ -116,8 +116,8 @@ void AngEnvelopeController::calculate_pid(float input_rpy[], float acc_rpy[], fl
     RateController::calculate_pid(input_rpy, acc_rpy, ang_rpy);
 
     // Adjust angle with Level Trims
-    float pitch_angle = - ang_rpy[GYRO_AXIS_PITCH] + degToRad(fm_settings.val.trimPitch);
-    float roll_angle  = ang_rpy[GYRO_AXIS_ROLL] + degToRad(fm_settings.val.trimRoll);
+    float pitch_angle = - ang_rpy[GYRO_AXIS_PITCH] + degToRad(gyro_trim_decode(fm_settings.val.trimPitch));
+    float roll_angle  = ang_rpy[GYRO_AXIS_ROLL] + degToRad(gyro_trim_decode(fm_settings.val.trimRoll));
 
     if (isInverted(ang_rpy)) {
         // The pitch seems to be reported the same even when it is inverted in the roll axis

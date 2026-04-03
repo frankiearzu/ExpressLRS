@@ -76,8 +76,8 @@ void  RateController::applyFModeSettings(gyro_mode_t fm) {
         DBGLN("Angle Limits: Pitch=%d Roll=%d",(int8_t)fm_settings.val.maxAnglePitch, (int8_t)fm_settings.val.maxAngleRoll);
     }
 
-    if (fm_settings.val.trimPitch+fm_settings.val.trimRoll != 0) {
-       DBGLN("Trims: Pitch=%d Poll=%d",(int8_t)fm_settings.val.trimPitch, (int8_t)fm_settings.val.trimRoll);
+    if (fm_settings.val.trimPitch != 0 || fm_settings.val.trimRoll != 0) {
+       DBGLN("Trims: Pitch=%d roll=%d",gyro_trim_decode(fm_settings.val.trimPitch), gyro_trim_decode(fm_settings.val.trimRoll));
     }
 }
 
@@ -129,14 +129,20 @@ void RateController::calculate_pid(float input_rpy[], float acc_rpy[], float ang
 {
     ignore_input[0] = ignore_input[1] = ignore_input[2] = false;
 
-    // Copy parameters to internal class variables
+    // Copy parameters to internal class variables, and initialize vars
     for (int8_t axis = 0; axis < 3; axis++) {
         RateController::input_rpy[axis] = input_rpy[axis];
         corr[axis] = 0;
+        stick_pri[axis] = 0;
     }
 
     // If this mode don't use Rate? don't compute corrections
-    if (!fm_settings.val.useRate) return;
+    if (!fm_settings.val.useRate) {
+        pid_roll.reset();
+        pid_pitch.reset();
+        pid_yaw.reset();
+        return;
+    }
 
     calculate_stick_pri(input_rpy);
     

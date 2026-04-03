@@ -776,8 +776,8 @@ static int8Parameter luaGyroFMode_TrimPitch = {
   {
     {
       (uint8_t) 0,    // value
-      (uint8_t) 246U, // min (246U = -10)
-      (uint8_t) +10,  // max
+      (uint8_t) 226U, // min (226U = -30)
+      (uint8_t) +30,  // max
     }
   },
   " deg"
@@ -788,8 +788,8 @@ static int8Parameter luaGyroFMode_TrimRoll = {
   {
     {
       (uint8_t) 0,    // value
-      (uint8_t) 246U, // min  (246U = -10)
-      (uint8_t) +10,  // max
+      (uint8_t) 226U, // min  (226U = -30)
+      (uint8_t) +30,  // max
     }
   },
   " deg"
@@ -877,7 +877,7 @@ static void luaparamGyroFMode_TrimPitch(propertiesCommon *item, int8_t arg) {
     const gyro_mode_t f_mode = (gyro_mode_t) (luaGyroFMode_Select.value + GYRO_MODE_RATE); // Relative to RATE
     rx_config_gyro_fmode_t newFm;
     newFm.raw = config.GetGyroFMode(f_mode)->raw;
-    newFm.val.trimPitch = arg;
+    newFm.val.trimPitch = gyro_trim_encode(arg);
     config.SetGyroFModeRaw(f_mode, newFm.raw);
     gyro.reload();
 }
@@ -886,7 +886,7 @@ static void luaparamGyroFMode_TrimRoll(propertiesCommon *item, int8_t arg) {
     const gyro_mode_t f_mode = (gyro_mode_t) (luaGyroFMode_Select.value + GYRO_MODE_RATE); // Relative to RATE
     rx_config_gyro_fmode_t newFm;
     newFm.raw = config.GetGyroFMode(f_mode)->raw;
-    newFm.val.trimRoll = arg;
+    newFm.val.trimRoll = gyro_trim_encode(arg);
     config.SetGyroFModeRaw(f_mode, newFm.raw);
     gyro.reload();
 }
@@ -1723,8 +1723,8 @@ void RXEndpoint::updateParameters()
     LUA_FIELD_VISIBLE(luaGyroFMode_AngLimitPitch,limitsVisible);
     LUA_FIELD_VISIBLE(luaGyroFMode_AngLimitRoll, limitsVisible);
 
-    setUint8Value(&luaGyroFMode_TrimPitch, fMode->val.trimPitch);
-    setUint8Value(&luaGyroFMode_TrimRoll, fMode->val.trimRoll);
+    setUint8Value(&luaGyroFMode_TrimPitch, gyro_trim_decode(fMode->val.trimPitch));
+    setUint8Value(&luaGyroFMode_TrimRoll, gyro_trim_decode(fMode->val.trimRoll));
 
     bool trimVisible = gyroIsVisible(fm,GYRO_UI_TRIMS);
      LUA_FIELD_VISIBLE(luaGyroFMode_TrimSubHeader, trimVisible);

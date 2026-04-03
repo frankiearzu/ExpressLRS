@@ -128,4 +128,16 @@ bool gyroIsVisible(gyro_mode_t fm, gyro_ui_vibility_t category) {
     return ret;
 }
 
+/* encode/decode negative numbers in 6 bits*/
+int8_t gyro_trim_decode(int8_t n) 
+{
+    if (n > 31) return -(n - 31); else return n; 
+}
+
+int8_t gyro_trim_encode(int8_t n) 
+{
+    if (n < 0) return 31 + (-n); else return n;
+}
+
+
 #endif
