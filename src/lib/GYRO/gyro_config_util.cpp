@@ -14,7 +14,7 @@ void gyroSetConfigDefaults() {
 
     // Configure Limits
     for (unsigned int ch=0; ch < PWM_MAX_CHANNELS; ch++) {
-         config.SetPwmChannelLimits(ch, 885, 2135, 1500);
+         config.SetPwmChannelLimits(ch, GYRO_US_MIN, GYRO_US_MAX, GYRO_US_MID);
     }
 
     // Configure PIDS
@@ -138,6 +138,8 @@ bool gyroIsVisible(gyro_mode_t fm, gyro_ui_vibility_t category) {
         // For Auto-Level/Launch
         tmp.val.trimPitch   = (fm == GYRO_MODE_LAUNCH)?10:0;
         tmp.val.trimRoll    = 0;
+
+        tmp.val.useRate = 1;
 
         config.SetGyroFModeRaw((gyro_mode_t) fm, tmp.raw);
     }

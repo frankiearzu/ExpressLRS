@@ -14,7 +14,8 @@ typedef union {
 typedef enum {
     GYRO_STATUS_OFF,
     GYRO_STATUS_NOT_DETECTED,
-    GYRO_STATUS_NEED_CALIBRATION,
+    GYRO_STATUS_NEED_RX_ORIENTATION,
+    GYRO_STATUS_NEED_STICK_CAL,
     GYRO_STATUS_OK
 } gyro_status_t;
 
@@ -161,7 +162,7 @@ typedef union __attribute__((packed)) {
                  maxAnglePitch:7, // Max 90
                  maxAngleRoll:7,
 
-                 trimPitch:6, // Max +- 31
+                 trimPitch:6, // Max +- 31  (Any value > 31 is negative. see the helper functions for this)
                  trimRoll:6,
 
                  useRate:1,

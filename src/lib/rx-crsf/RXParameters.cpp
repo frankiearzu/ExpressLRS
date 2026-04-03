@@ -38,7 +38,7 @@ static char pwmModes[] = "50Hz;60Hz;100Hz;160Hz;333Hz;400Hz;10kHzDuty;On/Off;DSh
 #if defined(HAS_GYRO)
 static char gyroOffOn[] = "Off;On"; // Off-ON
 //  needs to match gyro_status_t
-static char *gyroStatus[] = {"Off","IMU Not Detected","Need RX-Orientation","Running"};
+static char *gyroStatus[] = {"Off","IMU Not Detected","Need RX-Orientation","Need Stick Calibration","Running"};
 
 // Orientation Names in MPU
 extern const char* mpuOrientationNames[];
@@ -1624,7 +1624,7 @@ static void getFormatedGyroStatus(char *buffer) {
 }
 
 static void getFormatedGyroIMUStatus(char *buffer) {
-    sprintf(buffer, "IMU (%s) r-err", gyro.getMPUName());
+    sprintf(buffer, "IMU (%s) debug", gyro.getMPUName());
 }
 
 void RXEndpoint::updateParameters()
@@ -1673,7 +1673,7 @@ void RXEndpoint::updateParameters()
     setStringValue(&luaGyroStatus,gyroStatus[gyro.getStatus()]);
 
     getFormatedGyroIMUStatus(gyroIMUStatusStr);
-    sprintf(gyroIMUErrorStr, "%ld", gyro.getIMUReadErrors());
+    sprintf(gyroIMUErrorStr, "%ld re", gyro.getIMUReadErrors());
     luaGyroIMUStatus.common.name = gyroIMUStatusStr; // Change Title
     setStringValue(&luaGyroIMUStatus,gyroIMUErrorStr);
 

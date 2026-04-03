@@ -13,9 +13,9 @@
 
 #define GYRO_CODE_VERSION   1.07
 
-#define GYRO_US_MIN 988
+#define GYRO_US_MIN 885             // was 988
 #define GYRO_US_MID 1500
-#define GYRO_US_MAX 2012
+#define GYRO_US_MAX 2135            // was 2012
 
 #define radToDeg(angleInRadians) ((angleInRadians) * RAD_TO_DEG)
 #define degToRad(angleInDegrees) ((angleInDegrees) * DEG_TO_RAD)
@@ -50,6 +50,7 @@ public:
     void pause();
     void StickCenterCalibration();
     void StickLimitCalibration(bool done);
+    bool isStickCalibrationNeeded();
 
     unsigned long getIMUReadErrors();
     MPU_Base *mpuDev = nullptr;

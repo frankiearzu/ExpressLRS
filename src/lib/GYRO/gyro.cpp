@@ -134,7 +134,7 @@ void Gyro::start()
     gyro_mode = GYRO_MODE_OFF;
     learn_state = GYRO_LEARN_OFF;
     mpuDev->start();
-    initialized = mpuDev->isRunning();
+    initialized = mpuDev->isRunning() && !isStickCalibrationNeeded();
 
     gain_factor = 1.0;
     gyro_gain_factor_t gainFactorEnum = config.GetGyroGainFactor();
@@ -187,7 +187,8 @@ gyro_status_t Gyro::getStatus()
 {
     if (!config.GetGyroEnabled()) return GYRO_STATUS_OFF;
     if (mpuDev== nullptr) return GYRO_STATUS_NOT_DETECTED;
-    if (!mpuDev->isRunning()) return GYRO_STATUS_NEED_CALIBRATION; 
+    if (!mpuDev->isRunning()) return GYRO_STATUS_NEED_RX_ORIENTATION; 
+    if (isStickCalibrationNeeded()) return GYRO_STATUS_NEED_STICK_CAL;
     return GYRO_STATUS_OK;
 }
 
@@ -470,7 +471,8 @@ void Gyro::StickLimitCalibration(bool done)
         for (int ch=0;ch<PWM_MAX_CHANNELS;ch++) {
             auto ch_info = config.GetGyroChannel(ch);
             auto output_mode = (gyro_output_channel_function_t) ch_info->val.output_mode;
-            if (output_mode!= FN_NONE) {
+            if (output_mode!= FN_NONE && output_mode != FN_GYRO_GAIN && output_mode != FN_GYRO_MODE) {
+                // Only moving surfaces
                 auto pwm_limits =  &temp_limits[ch];
                 DBGLN("Ch%d: Min: %d Max: %d Center: %d", 
                     ch, (uint16_t) pwm_limits->val.min, (uint16_t) pwm_limits->val.max, (uint16_t) pwm_limits->val.mid);
@@ -481,6 +483,29 @@ void Gyro::StickLimitCalibration(bool done)
    } else {
         learn_state = GYRO_LEARN_LIMIT_START;
    }
+}
+
+bool Gyro::isStickCalibrationNeeded() {
+    bool isCalibrated = true;
+    DBGLN("IsStickCalibrationNeeded: Start");
+
+    for (int ch=0;ch < PWM_MAX_CHANNELS; ch++) {
+            auto ch_info = config.GetGyroChannel(ch);
+            auto output_mode = (gyro_output_channel_function_t) ch_info->val.output_mode;
+            auto limits =  config.GetPwmChannelLimits(ch);
+            if (output_mode!= FN_NONE && output_mode != FN_GYRO_GAIN && output_mode != FN_GYRO_MODE) {
+                // Only valid surfaces are checked
+                if ((limits->val.max == GYRO_US_MAX && limits->val.min == GYRO_US_MIN) ||  // Default
+                    (limits->val.max == limits->val.min)) { // Not moved the sticks
+                    DBGLN("Ch [%d] Not Calibrated",ch+1);
+                    isCalibrated = false;
+                    break;
+                }
+            }
+    }
+
+    DBGLN("IsStickCalibrationNeeded: All Calibrated");
+    return ! isCalibrated;
 }
 
 #endif
