@@ -14,6 +14,7 @@ A lot of code has been changed from the original to make it easier to setup.  So
   - [x] Wing-Type: Normal, 2-Ail, Delta
   - [x] Tail-Type: Normal, VTail, Taileron, Rudder-only
     - NOTE: Haven't flight tested Delta or Vtail.. so do your ground tests!
+    - NOTE: Delta/Vtail. Auto-Level DOES NOT RESPOND PROPERLY TO STICK INPUT, but does work correctly on Rate-Mode.
 
 - [x] Model Setup
   - [x] Mode Switch Flight-mode Assignments
