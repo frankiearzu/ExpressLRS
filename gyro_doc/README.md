@@ -1,6 +1,8 @@
 # Gyro
 
 > **Warning**: This is an experimental branch not ready for prime time. **Experiment at your own risk**.
+> Rate-Mode seems to work faily well, even on Delta/Vtais.
+> Auto-Level is not working properly for Delta/Vtail. It does level the plane, but only respect stick input on Ail/Rud, not elevator. Need to fix that.
 
 ## Credits
 
