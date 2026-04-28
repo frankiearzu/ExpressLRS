@@ -71,10 +71,10 @@ static bool boot_jitter(uint16_t *us)
 /**
  * Return the first channel matching input `mode` or -1 if not found.
 */
-static int8_t GetGyroFunChannelNumber(gyro_output_channel_function_t mode, gyro_output_channel_function_t mode2 = (gyro_output_channel_function_t) 100)
+static int8_t GetGyroFunChannelNumber(gyro_output_channel_function_t mode, gyro_output_channel_function_t mode2 = (gyro_output_channel_function_t) 100, uint8_t start_ch = 0)
 {
     int8_t result = -1;
-    for (int8_t i = 0; i < GYRO_MAX_CHANNELS; i++) {
+    for (int8_t i = start_ch; i < GYRO_MAX_CHANNELS; i++) {
         auto info =  config.GetGyroChannel(i);
         if (info->val.output_mode == mode ||
             info->val.output_mode == mode2) {
@@ -151,21 +151,16 @@ void Gyro::start()
     roll_ch     = GetGyroFunChannelNumber(FN_AILERON);
     pitch_ch    = GetGyroFunChannelNumber(FN_ELEVATOR);
     yaw_ch      = GetGyroFunChannelNumber(FN_RUDDER);
-
-    if (roll_ch < 0) { // Try to find Elevons
-        roll_ch     = GetGyroFunChannelNumber(FN_ELEVON_L, FN_ELEVON_R);
-        if (roll_ch >= 0 && pitch_ch < 0) {
-            pitch_ch = roll_ch;  // Elevator and Ail shares same channel
-        }
+    
+    elevon1_ch  = GetGyroFunChannelNumber(FN_ELEVON, FN_ELEVON_R);
+    if (elevon1_ch >= 0) {
+        elevon2_ch  = GetGyroFunChannelNumber(FN_ELEVON, FN_ELEVON_R, elevon1_ch + 1);
     }
 
-    if (yaw_ch < 0) { // Try to find Vtail
-        yaw_ch     = GetGyroFunChannelNumber(FN_VTAIL_L, FN_VTAIL_R);
-        if (yaw_ch >= 0 && pitch_ch < 0) {
-            pitch_ch = yaw_ch;  // Elevator and Rud shares same channel
-        }
+    vtail1_ch     = GetGyroFunChannelNumber(FN_VTAIL, FN_VTAIL_R);
+    if (vtail1_ch >= 0) {
+        vtail2_ch = GetGyroFunChannelNumber(FN_VTAIL, FN_VTAIL_R, vtail1_ch + 1);
     }
-
 
     #ifdef GYRO_BOOT_JITTER
     if (first_start) {
@@ -280,6 +275,7 @@ void Gyro::mixerInput()
         auto info =  config.GetGyroChannel(roll_ch);
         input_rpy[GYRO_AXIS_ROLL]   = channel_command(roll_ch) * ((info->val.inverted)?-1:+1);
     }
+
     if (pitch_ch >= 0)  {
         auto info =  config.GetGyroChannel(pitch_ch);
         input_rpy[GYRO_AXIS_PITCH]  = channel_command(pitch_ch) * ((info->val.inverted)?-1:+1);
@@ -289,6 +285,44 @@ void Gyro::mixerInput()
         auto info =  config.GetGyroChannel(yaw_ch);
         input_rpy[GYRO_AXIS_YAW]    = channel_command(yaw_ch) * ((info->val.inverted)?-1:+1);
     }
+
+    // ELEVON LOGIC if no aileron/elevator
+    if (roll_ch == -1 && pitch_ch == -1 && elevon1_ch >= 0 && elevon2_ch >= 0) {
+        auto i1 =  config.GetGyroChannel(elevon1_ch);
+        auto i2 =  config.GetGyroChannel(elevon2_ch);
+
+        auto e1  = channel_command(elevon1_ch) * ((i1->val.inverted)?-1:+1);
+        auto e2  = channel_command(elevon2_ch) * ((i2->val.inverted)?-1:+1);
+
+        // In the Radio, the Elevons are +50% ele, and +/-50% aileron
+        // Pitch: The average of the two elevons, since both moves in the same direction.
+        //          This gives a new "center".  So (e1 + e2) / 2.  Since the TX mix weight is 50%, then x2
+        //          (e1 + e2) / 2 * 2 = (e1 + e2).
+        // Roll:  Is how far e1 moved from the new "pitch" center, e1 x 2 to compensate for the 50% weight:  
+        //          2 * e1 - (e1+e2) = 2*e1 -e1 - e2 = (e1-e2) 
+
+        input_rpy[GYRO_AXIS_PITCH] = (e1 + e2);
+
+        // Check if it needs to reverse the Roll if is is ELEVON_Rev
+        input_rpy[GYRO_AXIS_ROLL] = (e1 - e2) * ((i1->val.output_mode==FN_ELEVON_R)?-1:+1);
+        
+    } 
+
+    if (yaw_ch == -1 && pitch_ch == 1 && vtail1_ch >= 0 && vtail2_ch >= 0) {
+        // Try VTail
+        auto i1 =  config.GetGyroChannel(vtail1_ch);
+        auto i2 =  config.GetGyroChannel(vtail2_ch);
+
+        auto v1  = channel_command(vtail1_ch) * ((i1->val.inverted)?-1:+1);
+        auto v2  = channel_command(vtail2_ch) * ((i2->val.inverted)?-1:+1);;
+
+        input_rpy[GYRO_AXIS_PITCH] = (v1 + v2);
+
+        // Check if it needs to reverse the YAW if is is VTAIL_Rev
+        input_rpy[GYRO_AXIS_YAW]   = (v1 - v2) * ((i1->val.output_mode==FN_VTAIL_R)?-1:+1);
+    }
+
+
 
     if (gain_ch >= 0)   detect_gain(channel_us(gain_ch)); else master_gain = 1.0;
 
@@ -396,8 +430,13 @@ int Gyro::tick()
         return 1000; // come back in 1000 ms if not initialized
     }
 
+    long now = micros();
+    //if (now - last_update < 500) {   // 1KHZ refresh
+    //     return DURATION_IMMEDIATELY;
+    //}
+
     if (mpuDev->read(acc_rpy, angle_rpy)) {
-        last_update = micros();
+        last_update = now;
         data_ready = true;
 
         if ((micros() - tel_delay) > 300000 ) { // 300 ms cycle
@@ -409,7 +448,8 @@ int Gyro::tick()
         return DURATION_IMMEDIATELY;
     }
 
-    return 1; //1 ms:  ~1k gyro refresh loop (return for timeout)
+    //return DURATION_IMMEDIATELY;
+     return 1; //1 ms:  ~1k gyro refresh loop (return for timeout)
 }
 
 uint8_t Gyro::event() 

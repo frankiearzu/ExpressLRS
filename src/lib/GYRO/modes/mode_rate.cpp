@@ -197,17 +197,17 @@ uint16_t RateController::applyCorrection(uint8_t ch, gyro_output_channel_functio
             command = 0;
         }
     } 
-    else if (channel_function==FN_ELEVON_L || channel_function==FN_ELEVON_R) {
+    else if (channel_function==FN_ELEVON || channel_function==FN_ELEVON_R) {
         correction = (inverted)?-corr[GYRO_AXIS_PITCH]:corr[GYRO_AXIS_PITCH]; // Invert elevator if needed
-        auto cor2 = (channel_function==FN_ELEVON_L)?corr[GYRO_AXIS_ROLL]:-corr[GYRO_AXIS_ROLL]; // Invert Aileron depending of Left/Right 
+        auto cor2 = (channel_function==FN_ELEVON)?corr[GYRO_AXIS_ROLL]:-corr[GYRO_AXIS_ROLL]; // Invert Aileron depending of Left/Right 
         correction = (correction + cor2)/2;
         if (ignore_input[GYRO_AXIS_PITCH]) {
             command = 0;
         }
     }
-    else if (channel_function==FN_VTAIL_L || channel_function==FN_VTAIL_R) {
+    else if (channel_function==FN_VTAIL || channel_function==FN_VTAIL_R) {
         correction = (inverted)?-corr[GYRO_AXIS_PITCH]:corr[GYRO_AXIS_PITCH]; // Invert elevator if needed
-        auto cor2 = (channel_function==FN_VTAIL_L)?corr[GYRO_AXIS_YAW]:-corr[GYRO_AXIS_YAW]; // Invert Rud depending of Left/Right 
+        auto cor2 = (channel_function==FN_VTAIL)?corr[GYRO_AXIS_YAW]:-corr[GYRO_AXIS_YAW]; // Invert Rud depending of Left/Right 
         correction = (correction + cor2)/2;
         if (ignore_input[GYRO_AXIS_PITCH]) {
             command = 0;

@@ -95,9 +95,9 @@ typedef enum {
     FN_AILERON,
     FN_ELEVATOR,
     FN_RUDDER,
-    FN_ELEVON_L,
+    FN_ELEVON,
     FN_ELEVON_R,
-    FN_VTAIL_L,
+    FN_VTAIL,
     FN_VTAIL_R,
     FN_GYRO_MODE,
     FN_GYRO_GAIN

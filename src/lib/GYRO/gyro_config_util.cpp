@@ -85,7 +85,7 @@ void gyroQuickModelSetup(int wingType, int tailType) {
         config.SetGyroChannel(0, FN_AILERON, true, false); // Ail MAster
         break;
     case 3: // DELTA
-        config.SetGyroChannel(0, FN_ELEVON_L, true, false); // Ail, MASTER
+        config.SetGyroChannel(0, FN_ELEVON, true, false); // Ail, MASTER
         config.SetGyroChannel(1, FN_ELEVON_R, false, false); // Ele
         break;
   }
@@ -97,11 +97,11 @@ void gyroQuickModelSetup(int wingType, int tailType) {
         config.SetGyroChannel(3, FN_RUDDER, true, false); // Rud
         break;
     case 2: //Vtail
-        config.SetGyroChannel(1, FN_VTAIL_L, true, false); // Ele, MASTER
+        config.SetGyroChannel(1, FN_VTAIL, true, false); // Ele, MASTER
         config.SetGyroChannel(3, FN_VTAIL_R, false, false);   // Rud
         break;
     case 3: // Taileron
-        config.SetGyroChannel(0, FN_ELEVON_L, false, false); // Ail
+        config.SetGyroChannel(0, FN_ELEVON, false, false); // Ail
         config.SetGyroChannel(1, FN_ELEVON_R, false, false); // Ele
         config.SetGyroChannel(3, FN_RUDDER, true, false); // Rud, MASTER
         break;

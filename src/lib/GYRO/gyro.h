@@ -66,7 +66,7 @@ public:
     float angle_rpy[3];   // [roll, pitch, yaw] angles
 
     uint16_t update_rate;
-    unsigned long last_update;
+    unsigned long last_update = 0;
     uint8_t data_ready=false;
     bool initialized;
     gyro_learn_state_t learn_state = GYRO_LEARN_OFF;
@@ -80,6 +80,11 @@ private:
     int8_t  roll_ch   = -1;
     int8_t  pitch_ch  = -1;
     int8_t  yaw_ch    = -1;
+    int8_t  elevon1_ch= -1;
+    int8_t  elevon2_ch= -1;
+    int8_t  vtail1_ch= -1;
+    int8_t  vtail2_ch= -1;
+
 
     void detect_gain(uint16_t us);
     void detect_mode(uint16_t us);
