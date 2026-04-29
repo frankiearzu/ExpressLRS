@@ -6,18 +6,9 @@
 
 > **Auto-Level** is not working properly for Delta/Vtail. It does level the plane, but only respect stick input on Ail/Rud, not elevator. Need to fix that.
 
+**NEW from 1.08**. New hardware\target.json is needed to enable the gyro.. See instructions at the end of the file
+in the "building your own code" section.
 
-** NEW From 1.08 **
-New way to enable gyro:   in the folder src/hardware the file "targets.json" descrives the hardware settings for a given RX.
-To enable gyro, we need to add the "gyro_type" to the overlay section.
-
-For example, is you have a HR8EG, the official targets only have the non-gyro version of it.
-So we copy the entire JSON of the non-gyro RX, and we add the gyro_type to the overlay, like this:
-![targets_json_example](targets_gyro_example.jpg)
-the "hr8e" is the original target, and we copy it to create "hr8g".  Note the the Name and LUA name algo changed.
-
-You can download my copy of the targets.json who has the HR7EG,HR8EG and the SuperP [targets.json](targets.json).
-If you have Radiomaster ER6/ER8, you can just create a copy and add the gyro_type, also in the overlay you can set changes needed for PWM and I2C pins.
 
 ## Credits
 
@@ -307,3 +298,31 @@ The gyro uses two configurable PIDs, one for rate, one for all angular modes (Le
 * PID-Axis: Axis to configure (Roll, Pitch, Yaw)
 * P,I,D values:  NOTE: very careful with the I gain.
 
+# Building your own
+
+1. You will need to use GitHub desktop to clone my repository and branch to your local computer.  It will download into a folder like this "C:\Users\frank\Documents\GitHub\ExpressLRS".
+
+2. Start ELRS Configurator, and choose to do a "local" build. Select the non-gyro version of your RX to do the first buid. This will create the folder "src/hardware" and all official ELRS RX files.
+![elrs_configurator](elrs-configurator-settings.jpg)
+
+3. We will custumize our RX targets, and create a "gyro" version of them using the instructions below.
+
+
+## Add new RX targets for configuration.
+
+**NEW From 1.08**
+New way to enable gyro:   in the folder src/hardware the file "targets.json" descrives the hardware settings for a given RX.
+To enable gyro, we need to add the "gyro_type" to the overlay section.
+
+For example, is you have a HR8EG, the official targets only have the non-gyro version of it.
+So we copy the entire JSON of the non-gyro RX, and we add the gyro_type to the overlay, like this:
+![targets_json_example](targets_gyro_example.jpg)
+the "hr8e" is the original target, and we copy it to create "hr8g".  Note the the Name and LUA name algo changed.
+
+You can download my copy of the targets.json who has the HR7EG,HR8EG and the SuperP:
+
+[hardware\targets.json](hardware\targets.json)
+
+If you have Radiomaster ER6/ER8, you can just create a copy and add the gyro_type, also in the overlay you can set changes needed for PWM and I2C pins.
+
+For the ones using the LSM6DSO chip, you can download the file needed from here for some common RXs: [hardware\RX] (hardware\RX).
