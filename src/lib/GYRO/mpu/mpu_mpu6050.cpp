@@ -1,6 +1,6 @@
 #include "targets.h"
 
-#if defined(HAS_GYRO) && defined(GYRO_DEVICE_MPU6050)
+#if defined(HAS_GYRO)
 #include "mpu_mpu6050.h"
 #include "MPU6050_6Axis_MotionApps612.h"
 #include "logging.h"
@@ -82,9 +82,12 @@ void MPUDev_MPU6050::start() {
     mpu->setFullScaleAccelRange(accScaleCode);
     mpu->setFullScaleGyroRange(gyroScaleCode);
     mpu->setMasterClockSpeed(MPU6050_CLOCK_DIV_400); // 400kHz that matches Wire Clock
+    mpu->setIntDataReadyEnabled(true);
 
     //Set frequency filters
-    //mpu->setDLPFMode(MPU6050_DLPF_BW_256);   // LPF (Default is 256Hz, 8khz sample rate, delay < 1ms)
+    //mpu->setDLPFMode(MPU6050_DLPF_BW_256);     // LPF (Default is 256Hz, 8khz sample rate, delay < 1ms)
+    mpu->setDLPFMode(MPU6050_DLPF_BW_188);       // LPF (188Hz, 1khz sample rate, delay = 1.9ms)
+
     //mpu->setDHPFMode(MPU6050_DHPF_RESET);    // HBPF: (Default, No high filter)
     
     memcpy(&cal_accel_offets,config.GetAccelCalibration(),sizeof(rx_config_gyro_calibration_t));
@@ -100,12 +103,20 @@ void MPUDev_MPU6050::start() {
     DBGLN("MPU6050: Ready");
 }
 
+bool MPUDev_MPU6050::isDataReady() 
+{
+    uint8_t status = 0;
+    bool readOk = I2Cdev::readByte(m_address, MPU6050_RA_INT_STATUS, &status, 0) == 1;
+    // Check Data Ready Bit
+    return readOk && (status & (1<<MPU6050_INTERRUPT_DATA_RDY_BIT) != 0);
+}
+
 bool MPUDev_MPU6050::rawRead(int16_t *ax, int16_t *ay, int16_t *az, int16_t *gx, int16_t *gy, int16_t *gz) 
 {
     uint8_t buffer[14];
 
     //do the same, but retun error:  mpu->getMotion6(ax, ay, az, gx, gy, gz);
-    bool readOk = I2Cdev::readBytes(m_address, MPU6050_RA_ACCEL_XOUT_H, 14, buffer, 1) == 14;
+    bool readOk = I2Cdev::readBytes(m_address, MPU6050_RA_ACCEL_XOUT_H, 14, buffer, 0) == 14;
 
     if (readOk) {
         *ax = (((int16_t)buffer[0]) << 8) | buffer[1];

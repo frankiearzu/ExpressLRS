@@ -139,6 +139,8 @@ static const struct {
     {HARDWARE_spi_mosi, "spi_mosi", INT},
     {HARDWARE_spi_miso, "spi_miso", INT},
     {HARDWARE_spi_int, "spi_int", INT},
+
+    {HARDWARE_gyro_type, "gyro_type", INT},
 };
 
 typedef union {

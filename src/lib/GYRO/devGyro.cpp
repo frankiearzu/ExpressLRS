@@ -7,29 +7,27 @@
 #include "elrs_eeprom.h" // only needed to satisfy PIO
 #include "config.h"
 
-#ifdef GYRO_DEVICE_MPU6050
-#include "mpu/mpu_mpu6050.h"
-#endif
 
-#ifdef GYRO_DEVICE_LSM6DXX
+#include "mpu/mpu_mpu6050.h"
 #include "mpu/mpu_lsm6dXX.h"
-#endif
+
 
 extern boolean i2c_enabled;
 extern boolean spi_enabled;
 
 Gyro gyro = Gyro();
-static MPU_Base *mpuDev;
+static MPU_Base *mpuDev = nullptr;
 
 static bool initialize()
 {
+    if (! OPT_HAS_GYRO_HW) return false;
+
     mpuDev = nullptr;
 
     // I2C Gyros
     if (i2c_enabled)
     {
-#ifdef GYRO_DEVICE_MPU6050
-        if (mpuDev == nullptr)
+        if (mpuDev == nullptr  && OPT_HAS_GYRO_MPU6050)
         {
             mpuDev = new MPUDev_MPU6050();
             if (mpuDev->initialize()) {
@@ -38,13 +36,11 @@ static bool initialize()
                 mpuDev = nullptr;
             } 
         }
-#endif
     }
 
     // SPI Gyros
     if(spi_enabled) {
-#ifdef GYRO_DEVICE_LSM6DXX 
-        if (mpuDev == nullptr)
+        if (mpuDev == nullptr && OPT_HAS_GYRO_LSM6DXX)
         {
             mpuDev = new MPUDev_LSM6DXX();
             if (mpuDev->initialize()) {
@@ -53,7 +49,6 @@ static bool initialize()
                 mpuDev=nullptr;
             }
         }
-#endif
     } // if SPI
 
     if (mpuDev==nullptr) {

@@ -911,6 +911,19 @@ const HARDWARE_SCHEMA = [
             },
         ]
     },
+    {
+        title: 'Gyro', rows: [
+            {
+                id: 'gyro_type',
+                label: 'Gyro type',
+                type: 'select',
+                options: [
+                    {value: 0, label: 'None'}, {value: 1, label: 'MP6050 (I2C)'}, {value: 2, label: 'LSM6DXX (SPI)'}
+                ], desc: 'Type of Gyro connected'
+            },
+        ]
+    },
+
     /* /FEATURE: NOT IS_TX */
 ];
 

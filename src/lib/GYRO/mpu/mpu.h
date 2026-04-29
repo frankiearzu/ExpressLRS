@@ -15,6 +15,7 @@ class MPU_Base
         
         virtual void start();
         virtual uint8_t event();
+        virtual bool isDataReady();
         virtual bool read(float accel_rpy[], float angle_rpy[]);
        
         void calibrate(bool save);

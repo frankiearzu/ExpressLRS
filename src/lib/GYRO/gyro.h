@@ -11,7 +11,7 @@
 #include "mpu/mpu.h"
 #include "modes/mode.h"
 
-#define GYRO_CODE_VERSION   1.07
+#define GYRO_CODE_VERSION   1.08
 
 #define GYRO_US_MIN 885             // was 988
 #define GYRO_US_MID 1500
@@ -65,9 +65,6 @@ public:
     float acc_rpy[3];     // [roll, pitch, yaw] accelearion
     float angle_rpy[3];   // [roll, pitch, yaw] angles
 
-    uint16_t update_rate;
-    unsigned long last_update = 0;
-    uint8_t data_ready=false;
     bool initialized;
     gyro_learn_state_t learn_state = GYRO_LEARN_OFF;
 

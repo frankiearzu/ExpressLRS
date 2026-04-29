@@ -10,6 +10,7 @@
 
 #if defined(HAS_GYRO)
 #include "gyro.h"
+//extern connectionState_e connectionState;
 extern void gyroQuickModelSetup(int wingType, int tailType);
 #endif
 
@@ -44,7 +45,7 @@ static char *gyroStatus[] = {"Off","IMU Not Detected","Need RX-Orientation","Nee
 extern const char* mpuOrientationNames[];
 
 // Must match mixer.h: gyro_output_channel_function_t
-static const char gyroOutputChannelModes[] = "None;Aileron;Elevator;Rudder;Elevon_L;Elevon_R;VTail_L;VTail_R;Mode;Gain";
+static const char gyroOutputChannelModes[] = "None;Aileron;Elevator;Rudder;Elevon;Elevon_Inv;VTail;VTail_Inv;Mode;Gain";
 // Must match gyro.h gyro_mode_t
 static const char switch_gyroModes[] = "Off;Rate;Envelope;Auto-Level;Launch;Hover";
 static const char fmodes[] = "Rate;Envelope;Auto-Level;Launch;Hover";
@@ -1438,6 +1439,8 @@ void RXEndpoint::registerParameters()
     });
 
 #if defined(HAS_GYRO) 
+  if (OPT_HAS_GYRO_HW)
+  {
     DBGLN("RxPratameters.registerParameters(): Setting up GYRO LUA");
     // -- Servo Output Limits
     registerParameter(&luaMappingChannelLimitMin, &luaparamMappingChannelLimitMin, luaMappingFolder.common.id);
@@ -1593,6 +1596,7 @@ void RXEndpoint::registerParameters()
     registerParameter(&luaGyroFMode_GainYaw,     &luaparamGyroFMode_GainYaw, luaGyroFModeFolder.common.id);
     
     DBGLN("RxPratameters.registerParameters(): GYRO LUA Done");
+  } // OPT_HAS_GYRO
 #endif
   }
 
@@ -1629,6 +1633,10 @@ static void getFormatedGyroIMUStatus(char *buffer) {
 
 void RXEndpoint::updateParameters()
 {
+  // TODO FArzu:  Should we update LUA values if the RX is disconnected??
+  // Or even better, do the check at the caller "devRXLua.cpp" method "event"
+  // i.e:  if (connectionState != connected) return;
+
   setTextSelectionValue(&luaSerialProtocol, config.GetSerialProtocol());
 #if defined(PLATFORM_ESP32)
   if (RX_HAS_SERIAL1)
@@ -1661,8 +1669,11 @@ void RXEndpoint::updateParameters()
     setUint8Value(&luaMappingChannelIn, pwmCh->val.inputChannel + 1);
     setTextSelectionValue(&luaMappingOutputMode, pwmCh->val.mode);
     setTextSelectionValue(&luaMappingInverted, pwmCh->val.inverted);
+  }
 
 #if defined(HAS_GYRO)
+  if (OPT_HAS_GYRO_HW  && connectionState == connected)
+  {
     DBGLN("updateParameters(): Updating Gyro LUA values");
 
     auto gyroEnabled = config.GetGyroEnabled();
@@ -1742,10 +1753,9 @@ void RXEndpoint::updateParameters()
     LUA_FIELD_VISIBLE(luaGyroFMode_GainPitch,gainsVisible);
     LUA_FIELD_VISIBLE(luaGyroFMode_GainRoll,gainsVisible);
     LUA_FIELD_VISIBLE(luaGyroFMode_GainYaw, gainsVisible);
-    
-    #endif // HAS_GYRO
   }
-
+  #endif // HAS_GYRO
+  
   if (config.GetModelId() == 255)
   {
     setStringValue(&luaModelNumber, "Off");

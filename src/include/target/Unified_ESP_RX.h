@@ -95,9 +95,12 @@
 #if defined(PLATFORM_ESP32)
 
 // Gyro
+#define OPT_HAS_GYRO_HW (hardware_int(HARDWARE_gyro_type) > 0)
+#define OPT_HAS_GYRO_MPU6050 (hardware_int(HARDWARE_gyro_type) == 1)
+#define OPT_HAS_GYRO_LSM6DXX (hardware_int(HARDWARE_gyro_type) == 2)
+
+// TODO Change for the other ones, currently usefull to disable gyro code entirely
 #define HAS_GYRO
-#define GYRO_DEVICE_MPU6050
-#define GYRO_DEVICE_LSM6DXX
 
 // VTX
 #define OPT_HAS_VTX_SPI (hardware_pin(HARDWARE_vtx_nss) != UNDEF_PIN)

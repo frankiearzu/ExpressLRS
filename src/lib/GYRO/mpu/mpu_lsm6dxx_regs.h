@@ -64,7 +64,7 @@ typedef enum {
     LSM6DXX_VAL_CTRL1_XL_ODR833 = 0x07,       // accelerometer 833hz output data rate (gyro/8)
     LSM6DXX_VAL_CTRL1_XL_ODR1667 = 0x08,      // accelerometer 1666hz output data rate (gyro/4)
     LSM6DXX_VAL_CTRL1_XL_ODR3332 = 0x09,      // accelerometer 3332hz output data rate (gyro/2)
-    LSM6DXX_VAL_CTRL1_XL_ODR3333 = 0x0A,      // accelerometer 6664hz output data rate (gyro/1)
+    LSM6DXX_VAL_CTRL1_XL_ODR6664 = 0x0A,      // accelerometer 6664hz output data rate (gyro/1)
 
     LSM6DXX_VAL_CTRL1_XL_2G = 0x00,           // accelerometer 2G scale
     LSM6DXX_VAL_CTRL1_XL_16G = 0x01,          // accelerometer 16G scale
@@ -72,8 +72,14 @@ typedef enum {
 
     LSM6DXX_VAL_CTRL1_XL_LPF1 = 0x00,         // accelerometer output from LPF1
     LSM6DXX_VAL_CTRL1_XL_LPF2 = 0x01,         // accelerometer output from LPF2
+
+    LSM6DXX_VAL_CTRL2_G_ODR833 = 0x07,        // gyro 833hz output data rate
+    LSM6DXX_VAL_CTRL2_G_ODR1667 = 0x08,       // gyro 1666hz output data rate
+    LSM6DXX_VAL_CTRL2_G_ODR3332 = 0x09,       // gyro 3332hz output data rate
     LSM6DXX_VAL_CTRL2_G_ODR6664 = 0x0A,       // gyro 6664hz output data rate
+
     LSM6DXX_VAL_CTRL2_G_2000DPS = 0x03,       // gyro 2000dps scale
+
     // LSM6DXX_VAL_CTRL3_C_BDU = BIT(6),         // (bit 6) output registers are not updated until MSB and LSB have been read (prevents MSB from being updated while burst reading LSB/MSB)
     LSM6DXX_VAL_CTRL3_C_H_LACTIVE = 0,        // (bit 5) interrupt pins active high
     LSM6DXX_VAL_CTRL3_C_PP_OD = 0,            // (bit 4) interrupt pins push/pull
@@ -85,16 +91,18 @@ typedef enum {
     LSM6DXX_VAL_CTRL4_C_SPI_DISABLE = BIT(3), // (bit 3) disable SPI interface
     LSM6DXX_VAL_CTRL4_C_LPF1_SEL_G = BIT(1),  // (bit 1) enable gyro LPF1
     LSM6DXX_VAL_CTRL6_C_XL_HM_MODE = 0,       // (bit 4) enable accelerometer high performance mode
-    LSM6DXX_VAL_CTRL6_C_FTYPE_300HZ = 0x00,   // (bits 2:0) gyro LPF1 cutoff 335.5Hz
-    LSM6DXX_VAL_CTRL6_C_FTYPE_201HZ = 0x01,   // (bits 2:0) gyro LPF1 cutoff 232.0Hz
-    LSM6DXX_VAL_CTRL6_C_FTYPE_102HZ = 0x02,   // (bits 2:0) gyro LPF1 cutoff 171.1Hz
-    LSM6DXX_VAL_CTRL6_C_FTYPE_603HZ = 0x03,   // (bits 2:0) gyro LPF1 cutoff 609.0Hz
+    LSM6DXX_VAL_CTRL6_C_FTYPE_335HZ = 0x00,   // (bits 2:0) gyro LPF1 cutoff 335.5Hz
+    LSM6DXX_VAL_CTRL6_C_FTYPE_232HZ = 0x01,   // (bits 2:0) gyro LPF1 cutoff 232.0Hz
+    LSM6DXX_VAL_CTRL6_C_FTYPE_171HZ = 0x02,   // (bits 2:0) gyro LPF1 cutoff 171.1Hz
+    LSM6DXX_VAL_CTRL6_C_FTYPE_609HZ = 0x03,   // (bits 2:0) gyro LPF1 cutoff 609.0Hz
     LSM6DXX_VAL_CTRL7_G_HP_EN_G = BIT(6),   // (bit 6) enable gyro high-pass filter
     LSM6DXX_VAL_CTRL7_G_HPM_G_16 = 0x00,      // (bits 5:4) gyro HPF cutoff 16mHz
     LSM6DXX_VAL_CTRL7_G_HPM_G_65 = 0x01,      // (bits 5:4) gyro HPF cutoff 65mHz
     LSM6DXX_VAL_CTRL7_G_HPM_G_260 = 0x02,     // (bits 5:4) gyro HPF cutoff 260mHz
     LSM6DXX_VAL_CTRL7_G_HPM_G_1040 = 0x03,    // (bits 5:4) gyro HPF cutoff 1.04Hz
     LSM6DXX_VAL_CTRL9_XL_I3C_DISABLE = BIT(1),// (bit 1) disable I3C interface
+    LSM6DXX_VAL_STATUS_GDA  = BIT(0),        // (bit 0) gyro data Available
+    LSM6DXX_VAL_STATUS_XLDA = BIT(2),        // (bit 2) acceleromenter Data Available
 } lsm6dxxConfigValues_e;
 
 // LSM6DXX register configuration bit masks

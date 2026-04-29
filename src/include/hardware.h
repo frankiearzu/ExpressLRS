@@ -156,6 +156,8 @@ typedef enum {
     HARDWARE_spi_busy,
     HARDWARE_spi_int,
 
+    HARDWARE_gyro_type,
+
     HARDWARE_LAST
 
 } nameType;

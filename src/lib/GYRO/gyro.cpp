@@ -302,9 +302,9 @@ void Gyro::mixerInput()
         //          2 * e1 - (e1+e2) = 2*e1 -e1 - e2 = (e1-e2) 
 
         input_rpy[GYRO_AXIS_PITCH] = (e1 + e2);
-
-        // Check if it needs to reverse the Roll if is is ELEVON_Rev
-        input_rpy[GYRO_AXIS_ROLL] = (e1 - e2) * ((i1->val.output_mode==FN_ELEVON_R)?-1:+1);
+        input_rpy[GYRO_AXIS_ROLL] = -(e1 - e2);
+        
+        // TODO? Do we need to invet roll??  ((i1->val.output_mode==FN_ELEVON_R)?-1:+1);
         
     } 
 
@@ -317,9 +317,9 @@ void Gyro::mixerInput()
         auto v2  = channel_command(vtail2_ch) * ((i2->val.inverted)?-1:+1);;
 
         input_rpy[GYRO_AXIS_PITCH] = (v1 + v2);
-
-        // Check if it needs to reverse the YAW if is is VTAIL_Rev
-        input_rpy[GYRO_AXIS_YAW]   = (v1 - v2) * ((i1->val.output_mode==FN_VTAIL_R)?-1:+1);
+        input_rpy[GYRO_AXIS_YAW]   = -(v1 - v2);
+        
+        //TODO? Do we need to invert YAW??  ((i1->val.output_mode==FN_VTAIL_R)?-1:+1);
     }
 
 
@@ -422,7 +422,9 @@ unsigned long Gyro::getIMUReadErrors() {
 
 int Gyro::tick()
 {
-    static unsigned long tel_delay = 0; // Behaves like Global
+    // Behaves like Global
+    static unsigned long last_tel = millis(); 
+    static unsigned long last_tick = micros();
 
     if (!initialized ||
         mpuDev->calibrating) { 
@@ -430,17 +432,19 @@ int Gyro::tick()
         return 1000; // come back in 1000 ms if not initialized
     }
 
+    // only try to check data ready every 50uS 
     long now = micros();
-    //if (now - last_update < 500) {   // 1KHZ refresh
-    //     return DURATION_IMMEDIATELY;
-    //}
+    if (now - last_tick < 50) {   
+         return DURATION_IMMEDIATELY;
+    }
+    last_tick = now;
+    
+    // Do we have Gyro data Available ??
+    if (!mpuDev->isDataReady()) return DURATION_IMMEDIATELY;
 
-    if (mpuDev->read(acc_rpy, angle_rpy)) {
-        last_update = now;
-        data_ready = true;
-
-        if ((micros() - tel_delay) > 300000 ) { // 300 ms cycle
-            tel_delay = micros();
+    if (mpuDev->read(acc_rpy, angle_rpy)) {  
+        if ((millis() - last_tel) > 200 ) { // 200 ms (2s) cycle
+            last_tel = millis();
             send_telemetry();
         }
     } else {
@@ -448,8 +452,9 @@ int Gyro::tick()
         return DURATION_IMMEDIATELY;
     }
 
-    //return DURATION_IMMEDIATELY;
-     return 1; //1 ms:  ~1k gyro refresh loop (return for timeout)
+    // Loop again as fast as we can, the refresh rate of the gyro
+    // is driven by the hardware ouput-data-rate (ODR)
+    return DURATION_IMMEDIATELY;
 }
 
 uint8_t Gyro::event() 
@@ -527,7 +532,7 @@ void Gyro::StickLimitCalibration(bool done)
 
 bool Gyro::isStickCalibrationNeeded() {
     bool isCalibrated = true;
-    DBGLN("IsStickCalibrationNeeded: Start");
+    //DBGLN("IsStickCalibrationNeeded: Start");
 
     for (int ch=0;ch < PWM_MAX_CHANNELS; ch++) {
             auto ch_info = config.GetGyroChannel(ch);
@@ -537,14 +542,14 @@ bool Gyro::isStickCalibrationNeeded() {
                 // Only valid surfaces are checked
                 if ((limits->val.max == GYRO_US_MAX && limits->val.min == GYRO_US_MIN) ||  // Default
                     (limits->val.max == limits->val.min)) { // Not moved the sticks
-                    DBGLN("Ch [%d] Not Calibrated",ch+1);
+                    DBGLN("isStickCalibrationNeeded: Ch [%d] Not Calibrated",ch+1);
                     isCalibrated = false;
                     break;
                 }
             }
     }
 
-    DBGLN("IsStickCalibrationNeeded: All Calibrated");
+    //DBGLN("IsStickCalibrationNeeded: All Calibrated");
     return ! isCalibrated;
 }
 

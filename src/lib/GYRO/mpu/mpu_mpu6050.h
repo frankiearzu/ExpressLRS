@@ -15,6 +15,7 @@ class MPUDev_MPU6050 : public MPU_Base
         void start();
 
     protected:
+        bool isDataReady();
         bool rawRead(int16_t *ax, int16_t *ay, int16_t *az, int16_t *gx, int16_t *gy, int16_t *gz);
     private:
         MPU6050 *mpu;

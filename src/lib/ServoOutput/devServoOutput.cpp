@@ -149,7 +149,10 @@ static void servosFailsafe()
 static void servoCalcAllChannels(servoWrite_fn write, bool failSafe=false)
 {
     #if defined(HAS_GYRO)
-    gyro.mixerInput();
+    if (OPT_HAS_GYRO_HW) 
+    {
+        gyro.mixerInput();
+    }
     #endif
 	
     for (int ch = 0 ; ch < GPIO_PIN_PWM_OUTPUTS_COUNT ; ++ch)
@@ -177,7 +180,7 @@ static void servoCalcAllChannels(servoWrite_fn write, bool failSafe=false)
         }
         
         #if defined(HAS_GYRO)
-        if (!failSafe) {
+        if (!failSafe && OPT_HAS_GYRO_HW) {
             // Mix in gyro adjustments before handling inversion
             gyro.mixerOutput(ch, &us);
         }

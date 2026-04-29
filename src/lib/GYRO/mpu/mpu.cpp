@@ -595,13 +595,14 @@ void MPU_Base::calibrate(bool save)
 void MPU_Base::print_gyro_stats()
 {
     static long last_gyro_stats_time = 0;
+    static int update_rate = 0;
 
     if (millis() - last_gyro_stats_time < 500)
         return;
 
     // Calculate gyro update rate in HZ
-    int update_rate = 1.0 /
-                      ((micros() - last_gyro_update) / 1000000.0);
+    int current_rate = 1.0 / ((micros() - last_gyro_update) / 1000000.0);
+    update_rate = (update_rate + current_rate) / 2;  // Average
 
     char rate_str[5]; sprintf(rate_str, "%4d", update_rate);
 
@@ -613,22 +614,20 @@ void MPU_Base::print_gyro_stats()
     char gyro_y[8]; sprintf(gyro_y, "%6.2f", (double) v_gyro.y);
     char gyro_z[8]; sprintf(gyro_z, "%6.2f", (double) v_gyro.z);
 
+    char accel_x[8]; sprintf(gyro_x, "%6.2f", (double) v_accel.x);
+    char accel_y[8]; sprintf(gyro_y, "%6.2f", (double) v_accel.y);
+    char accel_z[8]; sprintf(gyro_z, "%6.2f", (double) v_accel.z);
+
     char gravity_x[8]; sprintf(gravity_x, "%4.2f", gravity.x);
     char gravity_y[8]; sprintf(gravity_y, "%4.2f", gravity.y);
     char gravity_z[8]; sprintf(gravity_z, "%4.2f", gravity.z);
-
-    char debug_line[128];
-    sprintf(debug_line,
-        "Pitch: %.2f Roll: %.2f Yaw: %.2f"
-        , ypr[1], ypr[2], ypr[0]
-    );
-    DBGLN(debug_line);
 
     // Uncomment lines needed for debugging
     DBGLN("Refresh: %s HZ ",rate_str);
     DBGLN("Pitch:%s Roll:%s Yaw:%s",pitch_str, roll_str, yaw_str);
     DBGLN("Q       (w: %f, x: %f, y: %f, z: %f)",q.w, q.x, q.y, q.z);
     DBGLN("Gyro    (x: %s, y: %s, z: %s)",gyro_x, gyro_y, gyro_z);
+    DBGLN("Accel   (x: %s, y: %s, z: %s)",accel_x, accel_y, accel_z);
     DBGLN("Gravity (x: %s, y: %s, z: %s)",gravity_x, gravity_y, gravity_z);
 
     last_gyro_stats_time = millis();

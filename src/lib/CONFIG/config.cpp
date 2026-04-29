@@ -824,7 +824,10 @@ void RxConfig::Load()
         CheckUpdateFlashedUid(false);
 
         #if defined(HAS_GYRO)
-        GyroCheckUpgrade();
+        if (OPT_HAS_GYRO_HW)
+        {
+            GyroCheckUpgrade();
+        }
         #endif
         return;
     }
@@ -1268,7 +1271,10 @@ RxConfig::SetDefaults(bool commit)
     m_config.teamraceChannel = AUX7; // CH11
 
 #if defined(HAS_GYRO)
-    SetGyroDefaults(false);
+    if (OPT_HAS_GYRO_HW)
+    {
+        SetGyroDefaults(false);
+    }
 #endif
 
     if (commit)

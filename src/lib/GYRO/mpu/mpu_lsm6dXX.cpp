@@ -1,6 +1,6 @@
 #include "targets.h"
 
-#if defined(HAS_GYRO) && defined(GYRO_DEVICE_LSM6DXX)
+#if defined(HAS_GYRO)
 #include "logging.h"
 #include "config.h"
 #include "mpu_lsm6dXX.h"
@@ -103,11 +103,33 @@ static void lsm6dxxConfig_I2C(MPU_Base *mpu)
     }
 }
 
+// ==============================
+// Check STATUS_REG
+// ==============================
+static bool lsm6dxxAccGyroDataReady_I2C(MPU_Base *mpu)
+{
+    uint8_t status;
+    mpu->readRegister(LSM6DXX_REG_STATUS, &status, 1);
+    // Check Accel (XL) and Gyro data available
+    uint8_t bits = LSM6DXX_VAL_STATUS_XLDA | LSM6DXX_VAL_STATUS_GDA; 
+    return ((status & bits) == bits); // Has Gyro and Acce;
+}
 
 
 static bool lsm6dxxAccGyroRead_I2C(MPU_Base *mpu, int16_t* ax, int16_t* ay, int16_t* az, int16_t* gx, int16_t* gy, int16_t* gz)
 {
     uint8_t data[12];
+
+    /*
+    const uint8_t timeout_ms = 5;
+    uint32_t start = millis();
+    bool dataReady = false;
+    while (((millis() - start) < timeout_ms) && ! dataReady) {
+        dataReady = lsm6dxxAccGyroDataReady_I2C(mpu);
+    }
+    if (!dataReady) return false; // No data available
+    */
+
     const bool ack = mpu->readRegister(LSM6DXX_REG_OUTX_L_G, data, 12);
     if (!ack) {
         return false;
@@ -129,16 +151,17 @@ static bool lsm6dxxAccGyroRead_I2C(MPU_Base *mpu, int16_t* ax, int16_t* ay, int1
 static SPISettings _spiSettings;
 extern SPIClass _spi;
 #define LSM6D_CS_PIN  10
+#define SPI_READ_BIT    0x80
 
 // ==============================
-// SPI 读寄存器
+// SPI Read Register
 // ==============================
 static uint8_t readReg(uint8_t reg)
 {
   _spi.beginTransaction(_spiSettings);
   digitalWrite(LSM6D_CS_PIN, LOW);
 
-  _spi.transfer(reg | 0x80);  // 读 = 最高位 1
+  _spi.transfer(reg | SPI_READ_BIT);  //Turn on SPI_READ_BIT
   uint8_t val = _spi.transfer(0xFF);
 
   digitalWrite(LSM6D_CS_PIN, HIGH);
@@ -148,7 +171,7 @@ static uint8_t readReg(uint8_t reg)
 }
 
 // ==============================
-// SPI 写寄存器
+// SPI Write Register
 // ==============================
 static void writeReg(uint8_t reg, uint8_t val)
 {
@@ -164,16 +187,15 @@ static void writeReg(uint8_t reg, uint8_t val)
 }
 
 // ==============================
-// SPI Burst 连续读取 - 高效读取多字节数据
+// SPI Burst Read
 // ==============================
 static void burstRead(uint8_t reg, uint8_t *data, uint8_t length)
 {
   _spi.beginTransaction(_spiSettings);
   digitalWrite(LSM6D_CS_PIN, LOW);
 
-  // 读标志 = 寄存器地址 | 0x80
-  // IF_INC (auto-increment) 已在 CTRL3_C 寄存器中启用
-  _spi.transfer(reg | 0x80);
+  // IF_INC (auto-increment) needs to be setup in CTRL3_C
+  _spi.transfer(reg | SPI_READ_BIT);
   for (uint8_t i = 0; i < length; i++) {
     data[i] = _spi.transfer(0xFF);
   }
@@ -183,21 +205,15 @@ static void burstRead(uint8_t reg, uint8_t *data, uint8_t length)
 }
 
 // ==============================
-// 等待数据就绪 - 检查 STATUS_REG
+// Check STATUS_REG
 // ==============================
-static bool waitForDataReady(uint8_t timeout_ms)
+static bool lsm6dxxAccGyroDataReady_SPI()
 {
-  uint32_t start = millis();
-  while (millis() - start < timeout_ms) {
     uint8_t status = readReg(LSM6DXX_REG_STATUS);
-    // 检查 XLDA (bit 2) 和 GDA (bit 0) 是否就绪
-    if ((status & (BIT(2) | BIT(0))) == (BIT(2) | BIT(0))) {
-      return true;
-    }
-  }
-  return false; // 超时
+    // Check Accel (XL) and Gyro data available
+    uint8_t bits = LSM6DXX_VAL_STATUS_XLDA | LSM6DXX_VAL_STATUS_GDA; 
+    return ((status & bits) == bits); // Has Gyro and Acce;
 }
-
 
 static bool lsm6dxxDetect_SPI(MPU_Base *mpu)
 {
@@ -225,18 +241,23 @@ static void lsm6dxxConfig_SPI(MPU_Base *mpu) {
     uint8_t ctrl3 = readReg(LSM6DXX_REG_CTRL3_C);
     DBGLN("SPI DEV CTRL3_C after reset: 0x%x", ctrl3);
 
+    // Configure interrupt pin 1 for gyro data ready only
+    writeReg(LSM6DXX_REG_INT1_CTRL, LSM6DXX_VAL_INT1_CTRL_ENABLE);
+
+    // Disable interrupt pin 2
+    writeReg(LSM6DXX_REG_INT2_CTRL, LSM6DXX_VAL_INT2_CTRL_DISABLE);
+
     // Configure accelerometer: 
-    uint8_t data = (LSM6DXX_VAL_CTRL1_XL_ODR833 << 4) | // ODR 833Hz
+    uint8_t data = (LSM6DXX_VAL_CTRL1_XL_ODR833 << 4) | // ODR 1.6KHZ,  Original ODR 833Hz
                     (LSM6DXX_VAL_CTRL1_XL_2G << 2) |    // 2G Scale
                     (LSM6DXX_VAL_CTRL1_XL_LPF2 << 1);
 
     writeReg(LSM6DXX_REG_CTRL1_XL, data);
     DBGLN("SPI DEV CTRL1_XL written: 0x%x", data);
 
-    // Configure gyro: ODR 6664Hz (匹配I2C lsm6dxxConfig), ±2000dps
-    // 0xAC = 1010_1100: ODR 6664Hz (0xA) + 2000dps (0x3)
+    // Configure gyro: ODR 1.6khz, ±2000dps
     writeReg(LSM6DXX_REG_CTRL2_G,
-        (LSM6DXX_VAL_CTRL2_G_ODR6664 << 4) |  // 6664hz ODR
+        (LSM6DXX_VAL_CTRL2_G_ODR833 << 4) |   // ODR 1.6Khz, original 1.6khz ODR
         (LSM6DXX_VAL_CTRL2_G_2000DPS << 2));   // 2000dps scale
     //DBGLN("SPI DEV CTRL2_G written: 0xAC");
 
@@ -254,7 +275,7 @@ static void lsm6dxxConfig_SPI(MPU_Base *mpu) {
     // Configure control register 6 for Low Pass Filter (LPF1)
     writeReg(LSM6DXX_REG_CTRL6_C,
         (LSM6DXX_VAL_CTRL6_C_XL_HM_MODE |  // High Performance Mode
-         LSM6DXX_VAL_CTRL6_C_FTYPE_300HZ   // set gyro LPF1 cutoff 335.5Hz
+         LSM6DXX_VAL_CTRL6_C_FTYPE_171HZ   // set gyro LPF1 cutoff 171Hz
         ));
 
     // NEW: Configure control register 7
@@ -282,10 +303,16 @@ static void lsm6dxxConfig_SPI(MPU_Base *mpu) {
 static bool lsm6dxxAccGyroRead_SPI(MPU_Base *mpu, int16_t* ax, int16_t* ay, int16_t* az, int16_t* gx, int16_t* gy, int16_t* gz)
 {
     uint8_t data[12];
-
-    if (!waitForDataReady(10)) {
-        return false;
+    
+    /*
+    const uint8_t timeout_ms = 5;
+    uint32_t start = millis();
+    bool dataReady = false;
+    while (((millis() - start) < timeout_ms) && ! dataReady) {
+        dataReady = lsm6dxxAccGyroDataReady_SPI();
     }
+    if (!dataReady) return false; // No data available
+    */
 
     burstRead(LSM6DXX_REG_OUTX_L_G, data, 12);
 
@@ -379,6 +406,16 @@ void MPUDev_LSM6DXX::start() {
     //DBGLN("LSM6DXX Gyro New Offs:  x=%d,y=%d,z=%d",mpu->getXGyroOffset(), mpu->getYGyroOffset(), mpu->getZGyroOffset());
 
     DBGLN("LSM6DXX: Ready");
+}
+
+bool MPUDev_LSM6DXX::isDataReady() 
+{
+#if USE_I2C
+    return lsm6dxxAccGyroDataReady_I2C(this);
+#endif
+#if USE_SPI   
+    return lsm6dxxAccGyroDataReady_SPI();
+#endif
 }
 
 bool MPUDev_LSM6DXX::rawRead(int16_t *ax, int16_t *ay, int16_t *az, int16_t *gx, int16_t *gy, int16_t *gz) 
