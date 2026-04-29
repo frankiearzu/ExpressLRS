@@ -321,8 +321,10 @@ the "hr8e" is the original target, and we copy it to create "hr8g".  Note the th
 
 You can download my copy of the targets.json who has the HR7EG,HR8EG and the SuperP:
 
-[hardware\targets.json](hardware\targets.json)
+[hardware/targets.json](hardware/targets.json)
 
 If you have Radiomaster ER6/ER8, you can just create a copy and add the gyro_type, also in the overlay you can set changes needed for PWM and I2C pins.
 
-For the ones using the LSM6DSO chip, you can download the file needed from here for some common RXs: [hardware\RX] (hardware\RX).
+For the ones using the LSM6DSO chip, you can download the file needed from here for some common RXs: [hardware/RX] (hardware/RX).
+
+After this, your new RX should show in the targets of the ELRS configurator.
