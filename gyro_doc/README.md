@@ -6,6 +6,19 @@
 
 > **Auto-Level** is not working properly for Delta/Vtail. It does level the plane, but only respect stick input on Ail/Rud, not elevator. Need to fix that.
 
+
+** NEW From 1.08 **
+New way to enable gyro:   in the folder src/hardware the file "targets.json" descrives the hardware settings for a given RX.
+To enable gyro, we need to add the "gyro_type" to the overlay section.
+
+For example, is you have a HR8EG, the official targets only have the non-gyro version of it.
+So we copy the entire JSON of the non-gyro RX, and we add the gyro_type to the overlay, like this:
+![targets_json_example](targets_gyro_example.jpg)
+the "hr8e" is the original target, and we copy it to create "hr8g".  Note the the Name and LUA name algo changed.
+
+You can download my copy of the targets.json who has the HR7EG,HR8EG and the SuperP [targets.json](targets.json).
+If you have Radiomaster ER6/ER8, you can just create a copy and add the gyro_type, also in the overlay you can set changes needed for PWM and I2C pins.
+
 ## Credits
 
 This code is an adaptation of the original gyro code created by Alex Wigen [Original Code](https://github.com/awigen/ExpressLRS/tree/add-rx-gyro-support).
