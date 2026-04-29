@@ -3202,6 +3202,21 @@
                 "platform": "esp32",
                 "firmware": "Unified_ESP32_2400_RX"
             },
+            "er6-gyro": {
+                "product_name": "RadioMaster ER6 (DIY Gyro-6050) 2.4GHz Diversity+6xPWM RX",
+                "lua_name": "RM ER6 - Gyro",
+                "layout_file": "Radiomaster 2400 ER8G.json",
+                "overlay": {
+                    "gyro_type": 1,
+                    "power_values": [-9,-6,-3,0],
+                    "power_lna_gain": 11,
+                    "pwm_outputs": [14, 12, 15, 2, 4, 9]
+                },
+                "upload_methods": ["uart", "wifi"],
+                "min_version": "3.3.0",
+                "platform": "esp32",
+                "firmware": "Unified_ESP32_2400_RX"
+            },
             "er6g": {
                 "product_name": "RadioMaster ER6-G 2.4GHz Diversity+6xPWM RX",
                 "lua_name": "RM ER6-G",
