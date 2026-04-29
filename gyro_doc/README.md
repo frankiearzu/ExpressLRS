@@ -325,6 +325,6 @@ You can download my copy of the targets.json who has the HR7EG,HR8EG and the Sup
 
 If you have Radiomaster ER6/ER8, you can just create a copy and add the gyro_type, also in the overlay you can set changes needed for PWM and I2C pins.
 
-For the ones using the LSM6DSO chip, you can download the file needed from here for some common RXs: [hardware/RX] (hardware/RX).
+For the ones using the LSM6DSO chip, you can download the file needed from here for some common RXs from my "gyro-doc/hardware/RX" folder.  The files will go into your "src/hardware/RX" folder.
 
 After this, your new RX should show in the targets of the ELRS configurator.
