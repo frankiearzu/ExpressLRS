@@ -1623,6 +1623,7 @@ static void updateBindModeLabel()
     luaBindMode.common.name = "Enter Bind Mode";
 }
 
+#if defined(HAS_GYRO) 
 static void getFormatedGyroStatus(char *buffer) {
     sprintf(buffer, "Status (v %2.2f / %d/ %s)",GYRO_CODE_VERSION, config.GetGyroConfigVersion(), gyro.getMPUName());
 }
@@ -1630,6 +1631,7 @@ static void getFormatedGyroStatus(char *buffer) {
 static void getFormatedGyroIMUStatus(char *buffer) {
     sprintf(buffer, "IMU (%s) debug", gyro.getMPUName());
 }
+#endif
 
 void RXEndpoint::updateParameters()
 {

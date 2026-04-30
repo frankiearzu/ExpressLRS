@@ -70,7 +70,7 @@ static void setupWire()
 
 void setupSPI() 
 {
-#if defined(TARGET_RX)
+#if defined(PLATFORM_ESP32) && defined(TARGET_RX)
 
     //spi dev
     int gpio_sck = GPIO_PIN_SPI_SCK;
