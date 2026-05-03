@@ -7,6 +7,7 @@
 
 #include <Wire.h>
 
+#define MAX_GYRO_DIFF 200
 
 // Generic
 //const char* mpuOrientationNames[8] = {
@@ -33,6 +34,7 @@ static int8_t orientationList[36][6] = {
 
 bool MPU_Base::initialize() {
     orientationIsWrong = true;
+    imgGyroCalNeeded = true;
     memset(&cal_gyro_offsets,0,sizeof(cal_gyro_offsets));
     memset(&cal_accel_offets,0,sizeof(cal_accel_offets));
     read_errors = 0;
@@ -149,6 +151,13 @@ bool MPU_Base::read(float accel_rpy[], float angle_rpy[]) {
             &v_gyro.x,  &v_gyro.y,  &v_gyro.z)) {
         read_errors++;
         return false;
+    }
+
+    // Do we need Automatic Gyro Calibration ?
+    // Wait until is connected to the TX
+    if (imgGyroCalNeeded) {
+        AutoCalibrateGyro(v_gyro.x, v_gyro.y, v_gyro.z);
+        return true;
     }
 
     v_accel.x -= cal_accel_offets.x;
@@ -410,6 +419,72 @@ void MPU_Base::Mahony_update(float ax, float ay, float az, float gx, float gy, f
     q->z = q->z * recipNorm;
 }
 
+bool MPU_Base::AutoCalibrateGyro(int32_t gx, int32_t gy, int32_t gz) 
+{
+    #define NUMBER_ITER_CALIB 1000
+    static int countSkip = 0;
+    static int count = 0;
+    static int32_t gxAccum = 0, gyAccum = 0, gzAccum = 0; 
+    static int32_t gxMin = 60000 , gxMax = -60000 , gyMin = 60000 , gyMax = -60000 , gzMin = 60000 , gzMax = -60000;
+
+    if (countSkip < NUMBER_ITER_CALIB) { // About 1s delay
+        countSkip++;
+        return false;
+    }
+
+    if (count < NUMBER_ITER_CALIB)
+    {
+        count++;
+        
+        gxAccum += (int32_t) gx;
+        gyAccum += (int32_t) gy;
+        gzAccum += (int32_t) gz;
+
+        if (gx < gxMin) gxMin = gx;
+        if (gy < gyMin) gyMin = gy;
+        if (gz < gzMin) gzMin = gz;
+        if (gx > gxMax) gxMax = gx;
+        if (gy > gyMax) gyMax = gy;
+        if (gz > gzMax) gzMax = gz;
+    } else {
+        imgGyroCalNeeded = false; // avoid calibration (it is done)
+        DBGLN ("Auto Gyro Calibration: gyro differences: x=%d (%d/%d) y=%d (%d/%d) z=%d (%d/%d)", 
+                 gxMax - gxMin, gxMax, gxMin,
+                 gxMax - gxMin, gxMax, gxMin,
+                 gzMax - gzMin, gzMax, gzMin);
+
+        if ( ((gxMax-gxMin) > MAX_GYRO_DIFF) or ((gyMax-gyMin) > MAX_GYRO_DIFF) or ((gzMax-gzMin) > MAX_GYRO_DIFF) ){
+            DBGLN("Auto Gyro calibration failed; will uses gyro offsets saved during horizontal calibration");
+            DBGLN("Auto Gyro: Using Offset x=%d  y=%d   z=%d\n",  cal_gyro_offsets.x ,cal_gyro_offsets.y,cal_gyro_offsets.z);
+        } else {
+            int32_t new_x = gxAccum / NUMBER_ITER_CALIB;
+            int32_t new_y = gyAccum / NUMBER_ITER_CALIB;
+            int32_t new_z = gzAccum / NUMBER_ITER_CALIB;
+
+            if (cal_gyro_offsets.x != new_x || cal_gyro_offsets.y != new_y || cal_gyro_offsets.z != new_z) {
+                DBGLN("Auto Gyro: Succeded, changes detected");
+                    
+                DBGLN("Auto Gyro: Old Offset x=%d  y=%d   z=%d",  cal_gyro_offsets.x ,cal_gyro_offsets.y,cal_gyro_offsets.z);
+                cal_gyro_offsets.x = new_x;
+                cal_gyro_offsets.y = new_y;
+                cal_gyro_offsets.z = new_z;
+                DBGLN("Auto Gyro: Saving New Offset x=%d  y=%d   z=%d",  cal_gyro_offsets.x ,cal_gyro_offsets.y,cal_gyro_offsets.z);
+
+                config.SetGyroCalibration(
+                    cal_gyro_offsets.x,
+                    cal_gyro_offsets.y,
+                    cal_gyro_offsets.z
+                );
+                config.Commit();
+            } else {
+                DBGLN("Auto Gyro: Succeded, no change in calibration");
+            }
+            
+        }
+    }    
+    return true;
+}
+
 bool MPU_Base::CalibrateGyro(int8_t loops, rx_config_gyro_calibration_t *offsets)
 {
    #define ACCEL_NUM_AVG_SAMPLES	150
@@ -457,7 +532,7 @@ bool MPU_Base::CalibrateGyro(int8_t loops, rx_config_gyro_calibration_t *offsets
                  gxMax - gxMin, gxMax, gxMin,
                  gzMax - gzMin, gzMax, gzMin);
 
-    #define MAX_GYRO_DIFF 200
+    
     if (((gxMax - gxMin) > MAX_GYRO_DIFF) or ((gyMax - gyMin) > MAX_GYRO_DIFF) or ((gzMax - gzMin) > MAX_GYRO_DIFF)) {
         DBGLN ("Error in IMU calibration: to much variations in the gyro values");
         calibrating = false;

@@ -163,14 +163,14 @@ void Gyro::start()
     }
 
     #ifdef GYRO_BOOT_JITTER
-    if (first_start) {
+    if (first_start && (connectionState == connected) && mpuDev->imgGyroCalNeeded) {
         boot_jitter_times = 0;
         boot_jitter_time = 0;
+        first_start = false;
     }
     #endif
     
     DBGLN("Gyro:Start() END");
-    first_start = false;
 }
 
 const char * Gyro::getMPUName() {

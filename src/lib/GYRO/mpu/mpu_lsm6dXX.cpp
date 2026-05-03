@@ -386,7 +386,8 @@ bool MPUDev_LSM6DXX::initialize() {
 
 void MPUDev_LSM6DXX::start() {
     DBGLN("LSM6DXX Start");
-    
+    MPU_Base::start();
+
 #if USE_I2C   
     lsm6dxxConfig_I2C(this);
 #endif

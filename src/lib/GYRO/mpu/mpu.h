@@ -9,6 +9,7 @@ class MPU_Base
         static uint8_t m_address;
         uint8_t     calibrating = false;
         unsigned long read_errors = 0;
+        bool    imgGyroCalNeeded = true;
 
         virtual const char * GetMPUName();
         virtual bool initialize();
@@ -66,6 +67,7 @@ class MPU_Base
 
         virtual bool CalibrateGyro(int8_t loops, rx_config_gyro_calibration_t *offsets);
         virtual bool CalibrateAccel(int8_t loops, rx_config_gyro_calibration_t *offsets);
+        virtual bool AutoCalibrateGyro(int32_t gx, int32_t gy, int32_t gz);
 
         void GetYawPitchRoll(float *data, Quaternion *q, VectorFloat *gravity);
         uint8_t GetGravity(VectorFloat *v, Quaternion *q);

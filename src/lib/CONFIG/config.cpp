@@ -1522,6 +1522,7 @@ void
 RxConfig::SetAccelCalibration(uint16_t x, uint16_t y, uint16_t z)
 {
     rx_config_gyro_calibration_t *accel = &m_config.gyro.accelCalibration;
+    if (accel->x == x && accel->y == y && accel->z == z) return; // no-change
     accel->x = x;
     accel->y = y;
     accel->z = z;
@@ -1532,6 +1533,7 @@ void
 RxConfig::SetGyroCalibration(uint16_t x, uint16_t y, uint16_t z)
 {
     rx_config_gyro_calibration_t *gyro = &m_config.gyro.gyroCalibration;
+    if (gyro->x == x && gyro->y == y && gyro->z == z) return; // no-change
     gyro->x = x;
     gyro->y = y;
     gyro->z = z;

@@ -73,6 +73,7 @@ bool MPUDev_MPU6050::initialize() {
 
 void MPUDev_MPU6050::start() {
     DBGLN("MPU6050 Start");
+    MPU_Base::start();
     
     mpu->reset();
     vTaskDelay(50 * portTICK_PERIOD_MS);
