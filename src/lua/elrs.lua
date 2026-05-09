@@ -354,12 +354,6 @@ local function fieldFolderOpen(field)
 
   lineIndex = 1
   pageOffset = 0
-
-  -- Refresh current Folder, only if sub-menu
-  if (backFld.parent) then
-    --print(string.format("Reloading Fields=%d",currentFolderId))    
-    reloadRelatedFields(fields[currentFolderId])
-  end
 end
 
 local function fieldFolderDeviceOpen(field)
