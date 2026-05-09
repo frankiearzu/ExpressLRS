@@ -59,8 +59,11 @@ static char gyroStatusStr[30]; // Display Status + Version
 static char gyroIMUStatusStr[30]; // Display Gyro and Errors
 static char gyroIMUErrorStr[10];
 
-static const char gyroRxOrientations[] = 
-    {"QRC Dn(X+);QRC Up(X-);Pins Up(Y+);Pins Dn(Y-);Lbl Up(Z+);Lbl Dn(Z-);WRONG;WRONG"};
+static const char gyroRxOrientationsHR[] = 
+    {"Ext-B Up(X+);Ext-B Dn(X-);Pins Up(Y+);Pins Dn(Y-);Lbl Up(Z+);Lbl Dn(Z-);WRONG;WRONG"};
+
+static const char gyroRxOrientationsRM[] = 
+    {"Pins Up(X+);Pins Dn(X-);V-Lbl Up(Y+);V-Lbl Dn(Y-);Lbl Up(Z+);Lbl Dn(Z-);WRONG;WRONG"};
 
 #endif
 
@@ -428,14 +431,14 @@ static void luaparamGyroPID_RateD(propertiesCommon *item, uint8_t arg)
 static selectionParameter luaGyroOrientationH = {
     {"Face Hor", CRSF_TEXT_SELECTION},
     6, // WRONG orintation
-    gyroRxOrientations,
+    OPT_HAS_GYRO_MPU6050?gyroRxOrientationsHR:gyroRxOrientationsRM,
     STR_EMPTYSPACE
 };
 
 static selectionParameter luaGyroOrientationV = {
-    {"Face Vert", CRSF_TEXT_SELECTION},
+    {"Face Ver", CRSF_TEXT_SELECTION},
     6, // WRONG orintation
-    gyroRxOrientations,
+    OPT_HAS_GYRO_MPU6050?gyroRxOrientationsHR:gyroRxOrientationsRM,
     STR_EMPTYSPACE};
 
 //---------  Reset Commands ---------------------

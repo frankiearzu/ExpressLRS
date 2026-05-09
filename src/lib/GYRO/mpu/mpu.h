@@ -75,7 +75,7 @@ class MPU_Base
         
 
         #ifdef DEBUG_GYRO_STATS
-        void print_gyro_stats();
+        void print_gyro_stats(long nowMicros);
         #endif
         
 };
