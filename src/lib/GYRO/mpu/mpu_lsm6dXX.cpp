@@ -64,7 +64,7 @@ static void lsm6dxxConfig_I2C(MPU_Base *mpu)
     // Configure the accelerometer
     mpu->writeRegister(LSM6DXX_REG_CTRL1_XL, 
         (LSM6DXX_VAL_CTRL1_XL_ODR833 << 4) |// ODR 833Hz
-        (LSM6DXX_VAL_CTRL1_XL_2G << 2) |    // 2G Scale
+        (LSM6DXX_VAL_CTRL1_XL_16G << 2) |   // 16G Scale
         (LSM6DXX_VAL_CTRL1_XL_LPF2 << 1));  // LPF2 output (default with ODR/4 cutoff)
 
     // Configure the gyro
@@ -249,16 +249,17 @@ static void lsm6dxxConfig_SPI(MPU_Base *mpu) {
 
     // Configure accelerometer: 
     uint8_t data = (LSM6DXX_VAL_CTRL1_XL_ODR833 << 4) | // ODR 1.6KHZ,  Original ODR 833Hz
-                    (LSM6DXX_VAL_CTRL1_XL_2G << 2) |    // 2G Scale
+                    (LSM6DXX_VAL_CTRL1_XL_16G << 2) |   // 16G Scale
                     (LSM6DXX_VAL_CTRL1_XL_LPF2 << 1);
 
     writeReg(LSM6DXX_REG_CTRL1_XL, data);
     DBGLN("SPI DEV CTRL1_XL written: 0x%x", data);
 
     // Configure gyro: ODR 1.6khz, ±2000dps
+    mpu->gyroSampleRate = 833;
     writeReg(LSM6DXX_REG_CTRL2_G,
         (LSM6DXX_VAL_CTRL2_G_ODR833 << 4) |   // ODR 1.6Khz, original 1.6khz ODR
-        (LSM6DXX_VAL_CTRL2_G_2000DPS << 2));   // 2000dps scale
+        (LSM6DXX_VAL_CTRL2_G_2000DPS << 2));  // 2000dps scale
     //DBGLN("SPI DEV CTRL2_G written: 0xAC");
 
     // Configure control register 3 - enable auto-increment for burst reads
@@ -371,15 +372,16 @@ bool MPUDev_LSM6DXX::initialize() {
 
     DBGLN("LSM6DXX found!!");
 
-    accScaleCode = LSM6DXX_VAL_CTRL1_XL_2G; // Acceleation 2G
-    accScale1G =   32768 / 2;  
+    gyroSampleRate = 833;
+
+    accScaleCode = LSM6DXX_VAL_CTRL1_XL_16G; // Acceleation 16G
+    accScaleG  = 16 / 32768.0;          //   multiply adc by this to get Gs
+    acc1G_adc = 32768 / 16;             //   1G in adc values 
 
     gyroScaleCode = LSM6DXX_VAL_CTRL2_G_2000DPS;  
-    gyroScaleRad = 2000.0 / 32768.0 / 180 * PI;  //   multiply adc by this to get rad°/s
-    gyroScaleDeg = 2000.0 / 32768.0 / 100;       //   multiply adc by this to get deg°/s     
+    gyroScaleDeg = 2000.0 / 32768.0;             //   multiply adc by this to get deg°/s
+    gyroScaleRad = radians(gyroScaleDeg);        //   multiply adc by this to get rad°/s     
     
-    //1.0f / 16.4f; // 2000 dps
-
     orientationIsWrong = true;
     return true;
 }

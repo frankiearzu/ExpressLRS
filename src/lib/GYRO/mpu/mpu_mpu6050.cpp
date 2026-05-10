@@ -58,14 +58,15 @@ bool MPUDev_MPU6050::initialize() {
         return false;
     }
 
-    accScaleCode = MPU6050_ACCEL_FS_2; // Acceleation 2G
-    accScale1G = 16384.0;              // +/-  32768/2 
+    gyroSampleRate = 1000;
 
-    // Data in Centi Degres/sec  
-    // Deg/sec = (ADC* (1/16.4)=0.0609756)
+    accScaleCode = MPU6050_ACCEL_FS_16; // Acceleation 16G
+    accScaleG  = 16 / 32768.0;         //   multiply adc by this to get Gs
+    acc1G_adc = 32768 / 16;            //   1G in adc value
+
     gyroScaleCode = MPU6050_GYRO_FS_2000;  
-    gyroScaleRad = 2000.0 / 32768.0 / 180 * PI;  //   multiply adc by this to get rad°/s
-    gyroScaleDeg = 2000.0 / 32768.0 / 100;       //   multiply adc by this to get deg°/s  
+    gyroScaleDeg = 2000.0 / 32768.0;             //   multiply adc by this to get deg°/s
+    gyroScaleRad = radians(gyroScaleDeg);        //   multiply adc by this to get rad°/s  
 
     orientationIsWrong = true;
     return true;

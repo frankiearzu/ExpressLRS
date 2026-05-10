@@ -10,6 +10,7 @@ class MPU_Base
         uint8_t     calibrating = false;
         unsigned long read_errors = 0;
         bool    imgGyroCalNeeded = true;
+        uint16_t gyroSampleRate = 1000;
 
         virtual const char * GetMPUName();
         virtual bool initialize();
@@ -54,7 +55,7 @@ class MPU_Base
 
         rx_config_gyro_calibration_t cal_gyro_offsets, cal_accel_offets;
 
-        float   accScale1G, gyroScaleRad, gyroScaleDeg;
+        float   accScaleG, acc1G_adc, gyroScaleRad, gyroScaleDeg;
 
         Quaternion  q = Quaternion();        // [w, x, y, z]         quaternion container
         VectorInt16 v_gyro, v_accel;
