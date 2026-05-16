@@ -4,7 +4,8 @@
 
 > **Rate-Mode** seems to work faily well, even on Delta/Vtais.
 
-> **Auto-Level** is not working properly for Delta/Vtail. It does level the plane, but only respect stick input on Ail/Rud, not elevator. Need to fix that.
+> **Auto-Level** seems to loose level if you do high rotation aerobatics (tight loops, snap rolls) before engaging auto-level. Takes like 10s before it recovers to level. If you fly normally, even nice aerobatics, it works well.
+
 
 **NEW from 1.08**. New hardware\target.json is needed to enable the gyro.. See instructions at the end of the file
 in the "building your own code" section.
@@ -14,7 +15,7 @@ in the "building your own code" section.
 
 This code is an adaptation of the original gyro code created by Alex Wigen [Original Code](https://github.com/awigen/ExpressLRS/tree/add-rx-gyro-support).
 
-A lot of code has been changed from the original to make it easier to setup.  Some parts of code has been taking from other open source project, including [INAV](https://github.com/iNavFlight/inav), and [OpenXSensor Gyro](https://github.com/openXsensor/openXsensor).
+A lot of code has been changed from the original to make it easier to setup.  Some parts of code has been taking from other open source project, including [INAV](https://github.com/iNavFlight/inav), and [OpenXSensor Gyro](https://github.com/frankiearzu/oXs_on_RP2040).
 
 ## Feature list
 - [x] Quick Model Setup
@@ -22,8 +23,7 @@ A lot of code has been changed from the original to make it easier to setup.  So
   - [x] Wing-Type: Normal, 2-Ail, Delta
   - [x] Tail-Type: Normal, VTail, Taileron, Rudder-only
     - NOTE: Haven't flight tested Delta or Vtail.. so do your ground tests!
-    - NOTE: Delta/Vtail. Auto-Level DOES NOT RESPOND PROPERLY TO STICK INPUT, but does work correctly on Rate-Mode.
-
+    
 - [x] Model Setup
   - [x] Mode Switch Flight-mode Assignments
   - [x] Lua channel assignments  (what the channel is used for)
@@ -300,7 +300,12 @@ The gyro uses two configurable PIDs, one for rate, one for all angular modes (Le
 
 # Building your own
 
-1. You will need to use GitHub desktop to clone my repository and branch to your local computer.  It will download into a folder like this "C:\Users\frank\Documents\GitHub\ExpressLRS".
+1. You will need to use GitHub desktop to clone my repository and branch to your local computer.  
+    - do "file"-> "Clone Repository"
+    - in the URL tab, type "https://github.com/frankiearzu/ExpressLRS"
+    - It will download into a folder like this "C:\Users\frank\Documents\GitHub\ExpressLRS".
+    - You can either choose my latest code by switching to the "gyro-dev" branch, or from the history, you can check out a tested/flow version using a "tag", tags will looks like "v1.11-Stable", by chossing on the left pannel "history", then right click on the tag you want, and "check out tag" (the warning that you are checking out a headless tag/branch is ok) ![github-tag](github_desktop_tag.jpg)
+
 
 2. Start ELRS Configurator, and choose to do a "local" build. Select the non-gyro version of your RX to do the first buid. This will create the folder "src/hardware" and all official ELRS RX files.
 ![elrs_configurator](elrs-configurator-settings.jpg)
@@ -319,7 +324,7 @@ So we copy the entire JSON of the non-gyro RX, and we add the gyro_type to the o
 ![targets_json_example](targets_gyro_example.jpg)
 the "hr8e" is the original target, and we copy it to create "hr8g".  Note the the Name and LUA name algo changed.
 
-You can download my copy of the targets.json who has the HR7EG,HR8EG and the SuperP:
+You can download my copy of the targets.json who has the HR7EG,HR8EG and the SuperP + Gyro. Also added ER8+DIY Gyro recently where the Ch7-8 are used to connect the MPU6050 external gyro.
 
 [hardware/targets.json](hardware/targets.json)
 
