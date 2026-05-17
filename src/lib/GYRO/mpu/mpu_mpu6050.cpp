@@ -19,7 +19,7 @@ bool MPUDev_MPU6050::initialize() {
     MPU_Base::initialize();
     m_address = MPU6050_DEFAULT_ADDRESS;     // Defaults is MPU6050_ADDRESS_AD0_LOW (0x68)
    
-    DBGLN("Detecting MPU6050");
+    DBGLN("Detecting MPU6050 (Address 0x68)");
     mpu =  new MPU6050(m_address);
     I2Cdev::readTimeout = 1; // 1ms timeout instead of 1000ms (1s)
 
@@ -35,8 +35,8 @@ bool MPUDev_MPU6050::initialize() {
 
     if (!found) {
         mpu = nullptr;
-        DBGLN("Detecting MPU6050 (Alt Address)");
-        m_address = MPU6050_ADDRESS_AD0_HIGH;    // Use the alternate address (0x69)
+        DBGLN("Detecting MPU6050 (Alt Address 0x70)");
+        m_address = 0x70;    // Use the alternate address (0x70)
         mpu =  new MPU6050(m_address);
         I2Cdev::readTimeout = 1; // 1ms timeout instead of 1000ms (1s)
 
