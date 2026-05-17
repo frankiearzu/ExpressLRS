@@ -1,5 +1,6 @@
 #include "mode_hover.h"
 #include "config.h"
+#include "logging.h"
 
 #if defined(HAS_GYRO)
 /**
@@ -17,12 +18,13 @@
  * directly up attitude.
  */
 
-static int16_t hoverStrength ;
-
 void HoverController::initialize(gyro_mode_t mode) {
     RateController::initialize(mode);
 
-    hoverStrength = 10; // config.GetGyroHoverStrength();
+    fm_angle_settings.raw =  config.GetGyroFMode(mode)->raw; // Default settings for ALL
+
+    hoverStrengthPitch = (float) fm_angle_settings.val.gainPitch / 100;
+    hoverStrengthYaw   = (float) fm_angle_settings.val.gainYaw / 100;
 }
 
 void HoverController::calculate_pid(float input_rpy[], float acc_rpy[], float ang_rpy[])
@@ -30,11 +32,29 @@ void HoverController::calculate_pid(float input_rpy[], float acc_rpy[], float an
     RateController::calculate_pid(input_rpy, acc_rpy, ang_rpy);
     
     float pitchRad = ang_rpy[GYRO_AXIS_PITCH];
-    float error = pitchRad - M_PI_2; // Pi/2 = 90degrees
-    error *= (float) hoverStrength / 16;
+    float rollRad =  ang_rpy[GYRO_AXIS_ROLL];
 
-    corr[GYRO_AXIS_PITCH] += (error * cos(pitchRad));
-    corr[GYRO_AXIS_YAW]   += (error * sin(pitchRad));
+    float error = pitchRad - M_PI_2; // Pi/2 = 90degrees
+
+    //NOTE: ORIGINAL A.Wigen CODE DID NOT HAVE THIS NORMALIZATION
+    // Normalize Error to +/- 1.0;  
+    error = error / M_PI;
+
+    errorPitch =  error * hoverStrengthPitch;
+    errorYaw   = -error * hoverStrengthYaw;
+    
+    corr[GYRO_AXIS_PITCH] += (errorPitch * cos(rollRad));
+    corr[GYRO_AXIS_YAW]   += (errorYaw * sin(rollRad));
 }
+
+#if defined(DEBUG_LOG)
+void HoverController::printState() {
+    RateController::printState();
+    DBGLN("error:  Pitch:%f", errorPitch);
+    DBGLN("hoverStrength:  Pitch:%f Yaw:%f", hoverStrengthPitch, hoverStrengthYaw);
+    DBGLN("angCorr:  Pitch:%f  Yaw:%f", corr[GYRO_AXIS_PITCH], corr[GYRO_AXIS_YAW]);
+
+}
+#endif // DEBUG_LOG
 
 #endif
