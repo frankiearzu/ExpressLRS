@@ -155,11 +155,15 @@ void Gyro::start()
     elevon1_ch  = GetGyroFunChannelNumber(FN_ELEVON, FN_ELEVON_R);
     if (elevon1_ch >= 0) {
         elevon2_ch  = GetGyroFunChannelNumber(FN_ELEVON, FN_ELEVON_R, elevon1_ch + 1);
+        pitch_ch = -1; // Ignore the individual inputs, will use Elevons as Pitch/Roll
+        roll_ch = -1;
     }
 
     vtail1_ch     = GetGyroFunChannelNumber(FN_VTAIL, FN_VTAIL_R);
     if (vtail1_ch >= 0) {
         vtail2_ch = GetGyroFunChannelNumber(FN_VTAIL, FN_VTAIL_R, vtail1_ch + 1);
+        pitch_ch = -1; // Ignore the individual inputs, will use VTail as Pitch/Yaw
+        yaw_ch = -1;
     }
 
     #ifdef GYRO_BOOT_JITTER
@@ -287,7 +291,7 @@ void Gyro::mixerInput()
     }
 
     // ELEVON LOGIC if no aileron/elevator
-    if (roll_ch == -1 && pitch_ch == -1 && elevon1_ch >= 0 && elevon2_ch >= 0) {
+    if (elevon1_ch >= 0 && elevon2_ch >= 0) {
         auto i1 =  config.GetGyroChannel(elevon1_ch);
         auto i2 =  config.GetGyroChannel(elevon2_ch);
 
@@ -308,7 +312,7 @@ void Gyro::mixerInput()
         
     } 
 
-    if (yaw_ch == -1 && pitch_ch == 1 && vtail1_ch >= 0 && vtail2_ch >= 0) {
+    if (vtail1_ch >= 0 && vtail2_ch >= 0) {
         // Try VTail
         auto i1 =  config.GetGyroChannel(vtail1_ch);
         auto i2 =  config.GetGyroChannel(vtail2_ch);
