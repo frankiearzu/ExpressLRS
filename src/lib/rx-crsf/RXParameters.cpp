@@ -57,7 +57,7 @@ static const char gyroAxis[] = "Roll;Pitch;Yaw";
 
 static char gyroStatusStr[30]; // Display Status + Version
 static char gyroIMUStatusStr[30]; // Display Gyro and Errors
-static char gyroIMUErrorStr[10];
+static char gyroIMUErrorStr[30];
 
 static const char gyroRxOrientationsHR[] = 
     {"UART Up(X+);UART Dn(X-);Pins Up(Y+);Pins Dn(Y-);Lbl Up(Z+);Lbl Dn(Z-);WRONG;WRONG"};
