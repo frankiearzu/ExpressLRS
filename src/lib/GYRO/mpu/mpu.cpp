@@ -29,7 +29,7 @@ char **mpuOrientationNames;
 
 // HR8EG
 static const char *gyroRxOrientationsHR[8] = 
-    {"Ext-B Up(X+)","Ext-B Dn(X-)","Pins Up(Y+)","Pins Dn(Y-)","Lbl Up(Z+)","Lbl Dn(Z-)","WRONG","WRONG"};
+    {"UART Up(X+)","UART Dn(X-)","Pins Up(Y+)","Pins Dn(Y-)","Lbl Up(Z+)","Lbl Dn(Z-)","WRONG","WRONG"};
 // RM
 static const char *gyroRxOrientationsRM[8] = 
     {"Pins Up(X+)","Pins Dn(X-)","V-Lbl Up(Y+)","V-Lbl Dn(Y-)","Lbl Up(Z+)","Lbl Dn(Z-)","WRONG","WRONG"};

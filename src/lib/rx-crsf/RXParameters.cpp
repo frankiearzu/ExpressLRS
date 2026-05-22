@@ -60,7 +60,7 @@ static char gyroIMUStatusStr[30]; // Display Gyro and Errors
 static char gyroIMUErrorStr[10];
 
 static const char gyroRxOrientationsHR[] = 
-    {"Ext-B Up(X+);Ext-B Dn(X-);Pins Up(Y+);Pins Dn(Y-);Lbl Up(Z+);Lbl Dn(Z-);WRONG;WRONG"};
+    {"UART Up(X+);UART Dn(X-);Pins Up(Y+);Pins Dn(Y-);Lbl Up(Z+);Lbl Dn(Z-);WRONG;WRONG"};
 
 static const char gyroRxOrientationsRM[] = 
     {"Pins Up(X+);Pins Dn(X-);V-Lbl Up(Y+);V-Lbl Dn(Y-);Lbl Up(Z+);Lbl Dn(Z-);WRONG;WRONG"};
@@ -1549,6 +1549,10 @@ void RXEndpoint::registerParameters()
       gyro.reload();
     }, luaGyroRxOrientationFolder.common.id);
 
+    // Update orientation Options now that we know what Gyro type do we have
+    setTextSelectionOptions(&luaGyroOrientationH, (char *)(OPT_HAS_GYRO_MPU6050?gyroRxOrientationsHR:gyroRxOrientationsRM));
+    setTextSelectionOptions(&luaGyroOrientationV, (char *)(OPT_HAS_GYRO_MPU6050?gyroRxOrientationsHR:gyroRxOrientationsRM));
+
     // ----- Gyro -> Settings - > Calibration -> Gyro Calibration
     registerParameter(&luaGyroCalibration, [this](propertiesCommon* item, uint8_t arg) { 
       luaparamGyroCalibration(item, arg); 
@@ -1689,7 +1693,7 @@ void RXEndpoint::updateParameters()
     setStringValue(&luaGyroStatus,gyroStatus[gyro.getStatus()]);
 
     getFormatedGyroIMUStatus(gyroIMUStatusStr);
-    sprintf(gyroIMUErrorStr, "%ld re", gyro.getIMUReadErrors());
+    sprintf(gyroIMUErrorStr, "%ld re, gt=%d", gyro.getIMUReadErrors(), hardware_int(HARDWARE_gyro_type));
     luaGyroIMUStatus.common.name = gyroIMUStatusStr; // Change Title
     setStringValue(&luaGyroIMUStatus,gyroIMUErrorStr);
 
@@ -1721,6 +1725,7 @@ void RXEndpoint::updateParameters()
 
     setTextSelectionValue(&luaGyroOrientationH, config.GetGyroOrientationH());
     setTextSelectionValue(&luaGyroOrientationV, config.GetGyroOrientationV());
+    
 
     const gyro_mode_t fm = (gyro_mode_t) (luaGyroFMode_Select.value + GYRO_MODE_RATE); // Start at 1
     const rx_config_gyro_fmode_t *fMode = config.GetGyroFMode(fm);

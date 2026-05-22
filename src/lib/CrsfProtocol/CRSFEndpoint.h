@@ -123,6 +123,14 @@ protected:
     static void filterOptions(selectionParameter *parameter, uint8_t min, uint8_t max, char *allOptions);
 
     /**
+     * Sets the Options of a text selection parameter in the CRSF interface.
+     *
+     * @param parameter Pointer to the selection parameter structure to modify
+     * @param newOptions The new options to set
+     */
+    static void setTextSelectionOptions(selectionParameter *parameter, const char * newValue) { parameter->options = newValue; }
+
+    /**
      * Sets the value of a text selection parameter in the CRSF interface.
      *
      * @param parameter Pointer to the selection parameter structure to modify
