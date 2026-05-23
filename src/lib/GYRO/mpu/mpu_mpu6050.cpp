@@ -2,9 +2,11 @@
 
 #if defined(HAS_GYRO)
 #include "mpu_mpu6050.h"
-#include "MPU6050_6Axis_MotionApps612.h"
+#include "mpu_mpu6050_regs.h"
+//#include "MPU6050_6Axis_MotionApps612.h"
 #include "logging.h"
 #include "config.h"
+#include <Wire.h>
 
 #define I2C_MASTER_FREQ_HZ 400000
 
@@ -15,17 +17,28 @@ const char * MPUDev_MPU6050::GetMPUName() {
     return "MPU6050";
 }
 
+static bool testConnection(MPU_Base* mpu) {
+    uint8_t id = 0;
+    // Get Device ID
+    bool ok = mpu->readRegister(MPU6050_RA_WHO_AM_I, &id, 1);
+    id = (id >> 1) & 0x3F; // Bit 0 is reserved, starts at bit 1, 6 bits
+    DBGLN("Id returned = 0x%x",id);
+    return ok && (id == 0x34); // 0x34 is the ID expected for this chip
+}
+
 bool MPUDev_MPU6050::initialize() {
     MPU_Base::initialize();
+    Wire.setTimeOut(5);
     m_address = MPU6050_DEFAULT_ADDRESS;     // Defaults is MPU6050_ADDRESS_AD0_LOW (0x68)
    
     DBGLN("Detecting MPU6050 (Address 0x68)");
-    mpu =  new MPU6050(m_address);
-    I2Cdev::readTimeout = 1; // 1ms timeout instead of 1000ms (1s)
+    //MPU6050 mpu =  new MPU6050(m_address);
+    //I2Cdev::readTimeout = 1; // 1ms timeout instead of 1000ms (1s)
 
     bool found = false;
     for (int8_t i=0;i<5;i++) {
-        if (mpu->testConnection()) 
+        //if (mpu->testConnection()) 
+        if (testConnection(this)) 
         {
             found = true;
             break;
@@ -34,15 +47,16 @@ bool MPUDev_MPU6050::initialize() {
     }
 
     if (!found) {
-        mpu = nullptr;
-        DBGLN("Detecting MPU6050 (Alt Address 0x70)");
-        m_address = 0x70;    // Use the alternate address (0x70)
-        mpu =  new MPU6050(m_address);
-        I2Cdev::readTimeout = 1; // 1ms timeout instead of 1000ms (1s)
+        //mpu = nullptr;
+        DBGLN("Detecting MPU6050 (Alt Address 0x69)");
+        m_address = 0x69;    // Use the alternate address (0x69)
+        //mpu =  new MPU6050(m_address);
+        //I2Cdev::readTimeout = 1; // 1ms timeout instead of 1000ms (1s)
 
         found = false;
         for (int8_t i=0;i<5;i++) {
-            if (mpu->testConnection()) 
+            //if (mpu->testConnection()) 
+            if (testConnection(this))
             {
                 found = true;
                 break;
@@ -54,7 +68,7 @@ bool MPUDev_MPU6050::initialize() {
     if (!found) 
     {
         DBGLN("MPU6050 not found!");
-        mpu = nullptr;
+        //mpu = nullptr;
         return false;
     }
 
@@ -76,41 +90,49 @@ void MPUDev_MPU6050::start() {
     DBGLN("MPU6050 Start");
     MPU_Base::start();
     
-    mpu->reset();
+    // Reset
+    writeRegister(MPU6050_RA_PWR_MGMT_1, 1 << MPU6050_PWR1_DEVICE_RESET_BIT); // Reset Device
     vTaskDelay(50 * portTICK_PERIOD_MS);
 
-    mpu->initialize();
+    // Initialize Power Settings, no Sleep, Clock Selection XGyro
+    uint8_t pwr =  (0 << MPU6050_PWR1_SLEEP_BIT) | // No SLeep
+                   (MPU6050_CLOCK_PLL_XGYRO  << MPU6050_PWR1_CLKSEL_BIT); // Clock Selection XGyro
+    writeRegister(MPU6050_RA_PWR_MGMT_1, pwr);
 
-    mpu->setFullScaleAccelRange(accScaleCode);
-    mpu->setFullScaleGyroRange(gyroScaleCode);
-    mpu->setMasterClockSpeed(MPU6050_CLOCK_DIV_400); // 400kHz that matches Wire Clock
-    mpu->setIntDataReadyEnabled(true);
+    // Accel Range, 16G
+    // MPU6050_ACCEL_FS_16
+    writeRegister(MPU6050_RA_ACCEL_CONFIG, accScaleCode << MPU6050_ACONFIG_AFS_SEL_BIT);
+
+    // Gyro Range, 2000 deg/sec
+    // MPU6050_GYRO_FS_2000
+    writeRegister(MPU6050_RA_GYRO_CONFIG, gyroScaleCode << MPU6050_GCONFIG_FS_SEL_BIT); 
+    
+    // Interrupt Enabled
+    writeRegister(MPU6050_RA_INT_ENABLE, 1 << MPU6050_INTERRUPT_DATA_RDY_BIT); // INT_ENABLE, DATA_RDY_EN
+
+    // Interrupt Pin.. not using one right now
+    //writeRegister(MPU6050_RA_INT_PIN_CFG, 0x02);  // INT_PIN_CFG, I2C_BYPASS_EN
 
     //Set frequency filters
-    //mpu->setDLPFMode(MPU6050_DLPF_BW_256);     // LPF (Default is 256Hz, 8khz sample rate, delay < 1ms)
-    mpu->setDLPFMode(MPU6050_DLPF_BW_188);       // LPF (188Hz, 1khz sample rate, delay = 1.9ms)
+    // MPU6050_DLPF_BW_188  = LPF (188Hz, 1khz sample rate, delay = 1.9ms)
+    writeRegister(MPU6050_RA_CONFIG, MPU6050_DLPF_BW_188 << MPU6050_CFG_DLPF_CFG_BIT);
 
-    //mpu->setDHPFMode(MPU6050_DHPF_RESET);    // HBPF: (Default, No high filter)
-    
     memcpy(&cal_accel_offets,config.GetAccelCalibration(),sizeof(rx_config_gyro_calibration_t));
     memcpy(&cal_gyro_offsets,config.GetGyroCalibration(),sizeof(rx_config_gyro_calibration_t));
     DBGLN("MPU6050 Acc Offs:  x=%d,y=%d,z=%d",cal_accel_offets.x, cal_accel_offets.y,cal_accel_offets.z);
     DBGLN("MPU6050 Gyro Offs:  x=%d,y=%d,z=%d",cal_gyro_offsets.x, cal_gyro_offsets.y,cal_gyro_offsets.z);
 
     setupOrientation();
-    //DBGLN("MPU6050: Gyro Calibration");
-    //mpu->CalibrateGyro(8); // Calibrate Gyro only that can change with temp
-    //DBGLN("MPU6050 Gyro New Offs:  x=%d,y=%d,z=%d",mpu->getXGyroOffset(), mpu->getYGyroOffset(), mpu->getZGyroOffset());
-
     DBGLN("MPU6050: Ready");
 }
 
 bool MPUDev_MPU6050::isDataReady() 
 {
     uint8_t status = 0;
-    bool readOk = I2Cdev::readByte(m_address, MPU6050_RA_INT_STATUS, &status, 0) == 1;
+    //bool readOk = I2Cdev::readByte(m_address, MPU6050_RA_INT_STATUS, &status, 0) == 1;
+    bool readOk = readRegister(MPU6050_RA_INT_STATUS, &status, 1);
     // Check Data Ready Bit
-    return readOk && (status & (1<<MPU6050_INTERRUPT_DATA_RDY_BIT) != 0);
+    return readOk && ((status & (1<<MPU6050_INTERRUPT_DATA_RDY_BIT)) != 0);
 }
 
 bool MPUDev_MPU6050::rawRead(int16_t *ax, int16_t *ay, int16_t *az, int16_t *gx, int16_t *gy, int16_t *gz) 
@@ -118,7 +140,8 @@ bool MPUDev_MPU6050::rawRead(int16_t *ax, int16_t *ay, int16_t *az, int16_t *gx,
     uint8_t buffer[14];
 
     //do the same, but retun error:  mpu->getMotion6(ax, ay, az, gx, gy, gz);
-    bool readOk = I2Cdev::readBytes(m_address, MPU6050_RA_ACCEL_XOUT_H, 14, buffer, 0) == 14;
+    //bool readOk = I2Cdev::readBytes(m_address, MPU6050_RA_ACCEL_XOUT_H, 14, buffer, 0) == 14;
+    bool readOk = readRegister(MPU6050_RA_ACCEL_XOUT_H, buffer, 14);
 
     if (readOk) {
         *ax = (((int16_t)buffer[0]) << 8) | buffer[1];

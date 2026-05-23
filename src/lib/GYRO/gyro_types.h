@@ -211,3 +211,64 @@ typedef struct __attribute__((packed)) {
     rx_config_gyro_PID_t   gyroPIDs[GYRO_PID_GROUP_MAX][GYRO_N_AXES]; // PID gains for each axis
     rx_config_gyro_fmode_t gyroFModes[GYRO_MODE_MAX]; //Mode Description
 } rx_config_gyro_t;
+
+
+class Quaternion {
+    public:
+        float w;
+        float x;
+        float y;
+        float z;
+        
+        Quaternion() {
+            w = 1.0f;
+            x = 0.0f;
+            y = 0.0f;
+            z = 0.0f;
+        }
+        
+        Quaternion(float nw, float nx, float ny, float nz) {
+            w = nw;
+            x = nx;
+            y = ny;
+            z = nz;
+        }
+};
+
+class VectorInt16 {
+    public:
+        int16_t x;
+        int16_t y;
+        int16_t z;
+
+        VectorInt16() {
+            x = 0;
+            y = 0;
+            z = 0;
+        }
+        
+        VectorInt16(int16_t nx, int16_t ny, int16_t nz) {
+            x = nx;
+            y = ny;
+            z = nz;
+        }
+};
+
+class VectorFloat {
+    public:
+        float x;
+        float y;
+        float z;
+
+        VectorFloat() {
+            x = 0;
+            y = 0;
+            z = 0;
+        }
+        
+        VectorFloat(float nx, float ny, float nz) {
+            x = nx;
+            y = ny;
+            z = nz;
+        }
+};

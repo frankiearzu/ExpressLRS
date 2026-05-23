@@ -7,11 +7,11 @@
 #include "pid.h"
 #include "gyro_types.h"
 #include <math.h>
-#include "helper_3dmath.h"
+//#include "helper_3dmath.h"
 #include "mpu/mpu.h"
 #include "modes/mode.h"
 
-#define GYRO_CODE_VERSION   1.13
+#define GYRO_CODE_VERSION   1.14
 
 #define GYRO_US_MIN 885             // was 988
 #define GYRO_US_MID 1500

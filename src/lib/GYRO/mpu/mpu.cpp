@@ -1,13 +1,13 @@
 #include "targets.h"
 
-// Comment to use old Algorithm instead of Fusin AHRS
-#define USE_FUSION_AHRS
+// Comment to use old Algorithm openXsensor/UNI-RX algorithm instead of Fusin AHRS
+//#define USE_FUSION_AHRS
 
 #if defined(HAS_GYRO)
 #include "mpu.h"
 #include "logging.h"
 #include "config.h"
-
+#include "mpu_biasFilter.h"
 #include <Wire.h>
 
 #define MAX_GYRO_DIFF 200       
@@ -17,7 +17,7 @@
 #include "Fusion.h"
 
 static FusionAhrs ahrs;
-static FusionBias bias;
+
 #endif
 
 // Generic
@@ -51,27 +51,18 @@ static int8_t orientationList[36][6] = {
 
 bool MPU_Base::initialize() {
     orientationIsWrong = true;
-    imgGyroCalNeeded = true;
+    //imgGyroCalNeeded = true;
     memset(&cal_gyro_offsets,0,sizeof(cal_gyro_offsets));
     memset(&cal_accel_offets,0,sizeof(cal_accel_offets));
     read_errors = 0;
 
     mpuOrientationNames = (char **) (OPT_HAS_GYRO_MPU6050?gyroRxOrientationsHR:gyroRxOrientationsRM);
 
+    gyroBiasInitialise(gyroSampleRate);
+
 #if defined (USE_FUSION_AHRS)    
     #define GYRO_RANGE  (gyroScaleDeg * 32768.0)
-    #define SAMPLE_RATE gyroSampleRate
-
-    FusionBiasInitialise(&bias);
-
-    const FusionBiasSettings bSettings = {
-            .sampleRate = SAMPLE_RATE,
-            .stationaryThreshold = 3.0f,
-            .stationaryPeriod = 3.0f,
-    };
-    FusionBiasSetSettings(&bias,&bSettings);
-
-
+    
     FusionAhrsInitialise(&ahrs);
     // Set AHRS algorithm settings
     const FusionAhrsSettings settings = {
@@ -80,9 +71,11 @@ bool MPU_Base::initialize() {
             .gyroscopeRange = GYRO_RANGE, /* replace this with actual gyroscope range in degrees/s */
             .accelerationRejection = 10.0f,
             .magneticRejection = 10.0f,
-            .recoveryTriggerPeriod = 2U * SAMPLE_RATE, /* 2 seconds */
+            .recoveryTriggerPeriod = 2U * gyroSampleRate, /* 2 seconds */
     };
     FusionAhrsSetSettings(&ahrs, &settings);
+#else
+   
 #endif
 
 
@@ -192,19 +185,6 @@ void MPU_Base::applyOrientation(VectorInt16 *v)
     v->z = t[orientationZ] * orientationSignZ;
 }
 
-void MPU_Base::applyOrientation(Quaternion *q)
-{
-    // take care of the orientation of the sensor in the model
-    float t[3];
-    t[0] = q->x;
-    t[1] = q->y;
-    t[2] = q->z;
-
-    q->x = t[orientationX] * orientationSignX;
-    q->y = t[orientationY] * orientationSignY;
-    q->z = t[orientationZ] * orientationSignZ;
-}
-
 bool MPU_Base::read(float accel_rpy[], float angle_rpy[]) {
     if (orientationIsWrong) return false;
 
@@ -214,17 +194,6 @@ bool MPU_Base::read(float accel_rpy[], float angle_rpy[]) {
         read_errors++;
         return false;
     }
-
-    #if defined(USE_FUSION_AHRS)
-    if (imgGyroCalNeeded) imgGyroCalNeeded = false; // ignore this calibration when using bias 
-    #else
-    // Do we need Automatic Gyro Calibration ?
-    // Wait until is connected to the TX
-    if (imgGyroCalNeeded) {
-        AutoCalibrateGyro(v_gyro.x, v_gyro.y, v_gyro.z);
-        return true;
-    }
-    #endif
 
     v_accel.x -= cal_accel_offets.x;
     v_accel.y -= cal_accel_offets.y;
@@ -243,6 +212,14 @@ bool MPU_Base::read(float accel_rpy[], float angle_rpy[]) {
     float deltat = ((float)(now - last))* 1.0e-6; //seconds since last update
     last = now;
     
+    // Get Gyro in Degrees/sec
+    VectorFloat gDeg;
+    gDeg.x = ((float) v_gyro.x) * gyroScaleDeg;
+    gDeg.y = ((float) v_gyro.y) * gyroScaleDeg;
+    gDeg.z = ((float) v_gyro.z) * gyroScaleDeg;
+
+    gyroBiasUpdate(gDeg);
+
     #if defined(USE_FUSION_AHRS)
         FusionVector g, a;
         // Accel in Gs
@@ -251,12 +228,9 @@ bool MPU_Base::read(float accel_rpy[], float angle_rpy[]) {
         a.axis.z = v_accel.z * accScaleG;
 
         // Gyro in Deg/sec
-        g.axis.x = v_gyro.x * gyroScaleDeg;
-        g.axis.y = v_gyro.y * gyroScaleDeg;
-        g.axis.z = v_gyro.z * gyroScaleDeg;
-
-        // Update bias algorithm
-        g = FusionBiasUpdate(&bias, g);
+        g.axis.x = gDeg.x;
+        g.axis.y = gDeg.y;
+        g.axis.z = gDeg.z;
 
         FusionAhrsUpdate(&ahrs, g, a, FUSION_VECTOR_ZERO, deltat);
         FusionQuaternion qq = FusionAhrsGetQuaternion(&ahrs);
@@ -284,21 +258,17 @@ bool MPU_Base::read(float accel_rpy[], float angle_rpy[]) {
         ypr[1] = angle_rpy[1];
         ypr[2] = angle_rpy[0];
     #else
-        float gx = ((float) v_gyro.x) * gyroScaleRad;
-        float gy = ((float) v_gyro.y) * gyroScaleRad;
-        float gz = ((float) v_gyro.z) * gyroScaleRad;
-
         Mahony_update(v_accel.x, v_accel.y, v_accel.z, 
-                        gx, gy, gz, 
+                        radians(gDeg.x), radians(gDeg.y), radians(gDeg.z),
                         deltat, &q);
 
         GetGravity(&gravity, &q);
         GetYawPitchRoll(ypr, &q, &gravity);
 
         // Accel in  rad/s
-        accel_rpy[0] = gx; // Roll
-        accel_rpy[1] = gy; // Pitch
-        accel_rpy[2] = gz; // Yaw
+        accel_rpy[0] = radians(gDeg.x); // Roll
+        accel_rpy[1] = radians(gDeg.y); // Pitch
+        accel_rpy[2] = radians(gDeg.z); // Yaw
 
         // In Rad
         angle_rpy[0] = ypr[2];  // Roll
@@ -443,10 +413,11 @@ void MPU_Base::OrientationVerticalExecute() {
 #define KP2 1.0
 #define KI2 0.0
 
+// currently ax, ay, az are in raw values (+- 32768) and gx,gy,gz are in rad/sec.
 void MPU_Base::Mahony_update(float ax, float ay, float az, float gx, float gy, float gz, float deltat, Quaternion *q) 
 {
 #if not defined(USE_FUSION_AHRS)
-    // currently ax, ay, az are in raw values (+- 32768) and gx,gy,gz are in rad/sec. 
+     
     float recipNorm;
     float vx, vy, vz;
     float ex, ey, ez;  //error terms
@@ -455,9 +426,11 @@ void MPU_Base::Mahony_update(float ax, float ay, float az, float gx, float gy, f
     float kp;
     float ki;
 
-    float tmp = ax * ax + ay * ay + az * az;
+    float tmp = (ax * ax) + (ay * ay) + (az * az);
     float totalAccRaw = sqrt(tmp);
+
     float totalAccG = totalAccRaw / acc1G_adc ; // convert in 1g to perform the comparison and to select best kp and ki
+    
     if (( totalAccG > KP1_LOW_LIMIT ) and ( totalAccG < KP1_HIGH_LIMIT )) { //When total acceleration is within some limits (close 1g)
         kp = KP1;
         ki = KI1;
@@ -468,6 +441,8 @@ void MPU_Base::Mahony_update(float ax, float ay, float az, float gx, float gy, f
         kp = 0;
         ki = 0;
     }
+
+
     // 
     // Compute feedback only if accelerometer measurement valid (avoids NaN in accelerometer normalisation)
     
@@ -477,15 +452,18 @@ void MPU_Base::Mahony_update(float ax, float ay, float az, float gx, float gy, f
         ax *= recipNorm;
         ay *= recipNorm;
         az *= recipNorm;
+
         // Estimated direction of gravity in the body frame (factor of two divided out)
         vx = q->x * q->z - q->w * q->y;
         vy = q->w * q->x + q->y * q->z;
         vz = q->w * q->w - 0.5f + q->z * q->z;
+
         // Error is cross product between estimated and measured direction of gravity in body frame
         // (half the actual magnitude)
         ex = (ay * vz - az * vy);
         ey = (az * vx - ax * vz);
         ez = (ax * vy - ay * vx);
+
         // Compute and apply to gyro term the integral feedback, if enabled
         if (ki > 0.0f) {
             ix += ki * ex * deltat;  // integral error scaled by Ki
@@ -495,6 +473,7 @@ void MPU_Base::Mahony_update(float ax, float ay, float az, float gx, float gy, f
             gy += iy;
             gz += iz;
         }
+        
         if (kp > 0.0 ) {
             // Apply proportional feedback to gyro term
             gx += kp * ex;
@@ -506,6 +485,7 @@ void MPU_Base::Mahony_update(float ax, float ay, float az, float gx, float gy, f
             iz=0;
         } 
     }
+
     // Integrate rate of change of quaternion, q cross gyro term
     deltat = 0.5 * deltat;
     gx *= deltat;   // pre-multiply common factors
@@ -518,9 +498,11 @@ void MPU_Base::Mahony_update(float ax, float ay, float az, float gx, float gy, f
     q->x += (qa * gx + qc * gz - q->z * gy);
     q->y += (qa * gy - qb * gz + q->z * gx);
     q->z += (qa * gz + qb * gy - qc * gx);
+
     // renormalise quaternion
-    tmp = q->w * q->w + q->x * q->x + q->y * q->y + q->z * q->z;
+    tmp = (q->w * q->w) + (q->x * q->x) + (q->y * q->y) + (q->z * q->z);
     if ( tmp == 0 ) return;
+
     recipNorm = 1.0 / sqrt(tmp);
     q->w = q->w * recipNorm;
     q->x = q->x * recipNorm;
@@ -557,7 +539,7 @@ bool MPU_Base::AutoCalibrateGyro(int32_t gx, int32_t gy, int32_t gz)
         if (gy > gyMax) gyMax = gy;
         if (gz > gzMax) gzMax = gz;
     } else {
-        imgGyroCalNeeded = false; // avoid calibration (it is done)
+        //imgGyroCalNeeded = false; // avoid calibration (it is done)
         DBGLN ("Auto Gyro Calibration: gyro differences: x=%d (%d/%d) y=%d (%d/%d) z=%d (%d/%d)", 
                  gxMax - gxMin, gxMax, gxMin,
                  gxMax - gxMin, gxMax, gxMin,
@@ -585,7 +567,7 @@ bool MPU_Base::AutoCalibrateGyro(int32_t gx, int32_t gy, int32_t gz)
                 //    cal_gyro_offsets.y,
                 //    cal_gyro_offsets.z
                 //);
-                config.Commit();
+                //config.Commit();
             } else {
                 DBGLN("Auto Gyro: Succeded, no change in calibration");
             }
@@ -785,29 +767,36 @@ void MPU_Base::print_gyro_stats(long nowMicros)
     int current_rate = 1.0 / ((nowMicros - last_gyro_update) / 1000000.0);
     update_rate = (update_rate + current_rate) / 2;  // Average
 
-    char rate_str[8]; sprintf(rate_str, "%4d", update_rate);
+    char rate_str[15]; sprintf(rate_str, "%4d", update_rate);
 
-    char pitch_str[10]; sprintf(pitch_str, "%6.2f", degrees(ypr[1]));
-    char roll_str[10]; sprintf(roll_str, "%6.2f", degrees(ypr[2]));
-    char yaw_str[10]; sprintf(yaw_str, "%6.2f", degrees(ypr[0]));
+    char pitch_str[15]; sprintf(pitch_str, "%6.2f", degrees(ypr[1]));
+    char roll_str[15]; sprintf(roll_str, "%6.2f", degrees(ypr[2]));
+    char yaw_str[15]; sprintf(yaw_str, "%6.2f", degrees(ypr[0]));
 
-    char gyro_x[10]; sprintf(gyro_x, "%6.2f", (double) v_gyro.x * gyroScaleDeg);
-    char gyro_y[10]; sprintf(gyro_y, "%6.2f", (double) v_gyro.y * gyroScaleDeg);
-    char gyro_z[10]; sprintf(gyro_z, "%6.2f", (double) v_gyro.z * gyroScaleDeg);
+    char gyro_x[15]; sprintf(gyro_x, "%6.3f", (double) v_gyro.x * gyroScaleDeg);
+    char gyro_y[15]; sprintf(gyro_y, "%6.3f", (double) v_gyro.y * gyroScaleDeg);
+    char gyro_z[15]; sprintf(gyro_z, "%6.3f", (double) v_gyro.z * gyroScaleDeg);
 
-    char accel_x[10]; sprintf(accel_x, "%6.2f", (double) v_accel.x * accScaleG);
-    char accel_y[10]; sprintf(accel_y, "%6.2f", (double) v_accel.y * accScaleG);
-    char accel_z[10]; sprintf(accel_z, "%6.2f", (double) v_accel.z * accScaleG);
+    char accel_x[15]; sprintf(accel_x, "%6.3f", (double) v_accel.x * accScaleG);
+    char accel_y[15]; sprintf(accel_y, "%6.3f", (double) v_accel.y * accScaleG);
+    char accel_z[15]; sprintf(accel_z, "%6.3f", (double) v_accel.z * accScaleG);
 
-    char gravity_x[8]; sprintf(gravity_x, "%4.2f", gravity.x);
-    char gravity_y[8]; sprintf(gravity_y, "%4.2f", gravity.y);
-    char gravity_z[8]; sprintf(gravity_z, "%4.2f", gravity.z);
+    char gravity_x[15]; sprintf(gravity_x, "%4.3f", gravity.x);
+    char gravity_y[15]; sprintf(gravity_y, "%4.3f", gravity.y);
+    char gravity_z[15]; sprintf(gravity_z, "%4.3f", gravity.z);
+
+
+    VectorFloat  o = getBiasOffsets();
+    char bias_x[15]; sprintf(bias_x, "%4.3f", o.x);
+    char bias_y[15]; sprintf(bias_y, "%4.3f", o.y);
+    char bias_z[15]; sprintf(bias_z, "%4.3f", o.z);
 
     // Uncomment lines needed for debugging
     DBGLN("Refresh: %s HZ ",rate_str);
     DBGLN("Pitch:%s Roll:%s Yaw:%s",pitch_str, roll_str, yaw_str);
     DBGLN("Q       (w: %f, x: %f, y: %f, z: %f)",q.w, q.x, q.y, q.z);
     DBGLN("Gyro    (x: %s, y: %s, z: %s)",gyro_x, gyro_y, gyro_z);
+    DBGLN("GBias   (x: %s, y: %s, z: %s)",bias_x, bias_y, bias_z);
     DBGLN("Accel   (x: %s, y: %s, z: %s)",accel_x, accel_y, accel_z);
     DBGLN("Gravity (x: %s, y: %s, z: %s)",gravity_x, gravity_y, gravity_z);
 

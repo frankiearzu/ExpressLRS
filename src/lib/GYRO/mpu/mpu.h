@@ -1,6 +1,6 @@
 #pragma once
 
-#include "helper_3dmath.h"
+//#include "helper_3dmath.h"
 #include "gyro_types.h"
 
 class MPU_Base
@@ -9,7 +9,6 @@ class MPU_Base
         static uint8_t m_address;
         uint8_t     calibrating = false;
         unsigned long read_errors = 0;
-        bool    imgGyroCalNeeded = true;
         uint16_t gyroSampleRate = 1000;
 
         virtual const char * GetMPUName();
@@ -27,7 +26,6 @@ class MPU_Base
 
         void setupOrientation();
         void applyOrientation(VectorInt16 *v);
-        void applyOrientation(Quaternion *q);
 
         void findGravity(int32_t ax, int32_t ay, int32_t az, uint8_t &idx);
         uint8_t readAndGetGravity();

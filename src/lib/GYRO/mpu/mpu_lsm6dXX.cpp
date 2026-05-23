@@ -4,7 +4,7 @@
 #include "logging.h"
 #include "config.h"
 #include "mpu_lsm6dXX.h"
-#include "I2Cdev.h"
+//#include "I2Cdev.h"
 #include "mpu_lsm6dxx_regs.h"
 
 

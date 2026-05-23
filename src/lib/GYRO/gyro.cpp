@@ -167,7 +167,7 @@ void Gyro::start()
     }
 
     #ifdef GYRO_BOOT_JITTER
-    if (first_start && (connectionState == connected) && mpuDev->imgGyroCalNeeded) {
+    if (first_start && (connectionState == connected)) {
         boot_jitter_times = 0;
         boot_jitter_time = 0;
         first_start = false;
