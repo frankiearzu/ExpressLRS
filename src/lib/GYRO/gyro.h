@@ -67,6 +67,7 @@ public:
 
     bool initialized;
     gyro_learn_state_t learn_state = GYRO_LEARN_OFF;
+    char lastErrorText[30];
 
 private:
    

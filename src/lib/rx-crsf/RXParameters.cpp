@@ -195,6 +195,12 @@ static selectionParameter luaGyroGainFactor = {
     STR_EMPTYSPACE
 };
 
+static struct commandParameter luaGyroMainRefresh = {
+    {"Refresh Page", CRSF_COMMAND},
+    lcsIdle, // step
+    STR_EMPTYSPACE
+};
+
 
 static folderParameter luaGyroMainFolder = {
     {"Gyro", CRSF_FOLDER},
@@ -237,35 +243,35 @@ static folderParameter luaGyroRxOrientationFolder = {
 };
 
 static selectionParameter luaGyroModePos1 = {
-    {"Position 1 (-100%)", CRSF_TEXT_SELECTION},
+    {"Pos 1 (-100%)", CRSF_TEXT_SELECTION},
     0, // value
     switch_gyroModes,
     STR_EMPTYSPACE
 };
 
 static selectionParameter luaGyroModePos2 = {
-    {"Position 2 (-50%)", CRSF_TEXT_SELECTION},
+    {"Pos 2 (-50%)", CRSF_TEXT_SELECTION},
     0, // value
     switch_gyroModes,
     STR_EMPTYSPACE
 };
 
 static selectionParameter luaGyroModePos3 = {
-    {"Position 3 (0%)", CRSF_TEXT_SELECTION},
+    {"Pos 3 (0%)", CRSF_TEXT_SELECTION},
     0, // value
     switch_gyroModes,
     STR_EMPTYSPACE
 };
 
 static selectionParameter luaGyroModePos4 = {
-    {"Position 4 (+50%)", CRSF_TEXT_SELECTION},
+    {"Pos 4 (+50%)", CRSF_TEXT_SELECTION},
     0, // value
     switch_gyroModes,
     STR_EMPTYSPACE
 };
 
 static selectionParameter luaGyroModePos5 = {
-    {"Position 5 (+100%)", CRSF_TEXT_SELECTION},
+    {"Pos 5 (+100%)", CRSF_TEXT_SELECTION},
     0, // value
     switch_gyroModes,
     STR_EMPTYSPACE
@@ -784,7 +790,7 @@ static int8Parameter luaGyroFMode_TrimPitch = {
       (uint8_t) +30,  // max
     }
   },
-  " deg"
+  " deg (+Up)"
 };
 
 static int8Parameter luaGyroFMode_TrimRoll = {
@@ -796,7 +802,7 @@ static int8Parameter luaGyroFMode_TrimRoll = {
       (uint8_t) +30,  // max
     }
   },
-  " deg"
+  " deg (+Left)"
 };
 
 static stringParameter luaGyroFMode_Gain_SubHeader = {
@@ -1466,6 +1472,12 @@ void RXEndpoint::registerParameters()
         gyro.reload();
       }, luaGyroMainFolder.common.id);
 
+      registerParameter(&luaGyroMainRefresh,[this](propertiesCommon* item, uint8_t arg) {
+          // Main Refresh Page
+          updateParameters();
+          sendCommandResponse((commandParameter *)item, lcsIdle, "Refresh");
+      },luaGyroMainFolder.common.id);
+      
         registerParameter(&luaGyroModelFolder,nullptr,luaGyroMainFolder.common.id);
             registerParameter(&luaGyroModesFolder,nullptr,luaGyroModelFolder.common.id);
             registerParameter(&luaGyroOutputFolder,nullptr,luaGyroModelFolder.common.id);     
@@ -1632,11 +1644,11 @@ static void updateBindModeLabel()
 
 #if defined(HAS_GYRO) 
 static void getFormatedGyroStatus(char *buffer) {
-    sprintf(buffer, "Status (v %2.2f / %d/ %s)",GYRO_CODE_VERSION, config.GetGyroConfigVersion(), gyro.getMPUName());
+    sprintf(buffer, "v%2.2f / %d",GYRO_CODE_VERSION, config.GetGyroConfigVersion());
 }
 
 static void getFormatedGyroIMUStatus(char *buffer) {
-    sprintf(buffer, "IMU (%s) debug", gyro.getMPUName());
+    sprintf(buffer, "IMU %s", gyro.getMPUName());
 }
 #endif
 
@@ -1693,7 +1705,11 @@ void RXEndpoint::updateParameters()
     setStringValue(&luaGyroStatus,gyroStatus[gyro.getStatus()]);
 
     getFormatedGyroIMUStatus(gyroIMUStatusStr);
-    sprintf(gyroIMUErrorStr, "%ld re, gt=%d", gyro.getIMUReadErrors(), hardware_int(HARDWARE_gyro_type));
+    if (gyro.getStatus()==GYRO_STATUS_NEED_STICK_CAL) {
+      sprintf(gyroIMUErrorStr, "%s",gyro.lastErrorText);
+    } else {
+      sprintf(gyroIMUErrorStr, "%ld re", gyro.getIMUReadErrors());
+    }
     luaGyroIMUStatus.common.name = gyroIMUStatusStr; // Change Title
     setStringValue(&luaGyroIMUStatus,gyroIMUErrorStr);
 

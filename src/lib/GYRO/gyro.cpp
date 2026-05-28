@@ -545,9 +545,10 @@ bool Gyro::isStickCalibrationNeeded() {
             if (output_mode!= FN_NONE && output_mode != FN_GYRO_GAIN && output_mode != FN_GYRO_MODE) {
                 // Only valid surfaces are checked
                 if ((limits->val.max == GYRO_US_MAX && limits->val.min == GYRO_US_MIN) ||  // Default
-                    (limits->val.max == limits->val.min)) { // Not moved the sticks
+                    ((limits->val.max - limits->val.min)) < 30) { // Not moved the sticks much
                     DBGLN("isStickCalibrationNeeded: Ch [%d] Not Calibrated",ch+1);
                     isCalibrated = false;
+                    sprintf(lastErrorText, "Ch%d Not Calibrated",ch+1);
                     break;
                 }
             }
