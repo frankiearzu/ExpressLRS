@@ -258,6 +258,105 @@ export function devMockPlugin() {
                 if (url === '/hardware.json' && method === 'POST') {
                     return readBody().then(() => sendText(res, 'Hardware config saved'))
                 }
+                // IMU page mock endpoints
+                if (url === '/imu.json' && method === 'GET') {
+                    return sendJSON(res, {
+                        "imu_disabled": false,
+                        "imu_orient_z": 1,
+                        "imu_orient_y": 5,
+                        "imu_mod_ch_pos_n100": 0,
+                        "imu_mod_ch_pos_n50": 0,
+                        "imu_mod_ch_pos_0": 1,
+                        "imu_mod_ch_pos_50": 0,
+                        "imu_mod_ch_pos_100": 3,
+                        "imu_rate_sens": 1,
+                        "imu_rate_mod_stick_prio": 100,
+                        "imu_rate_mod_gain_rol": 30,
+                        "imu_rate_mod_gain_pit": 40,
+                        "imu_rate_mod_gain_yaw": 50,
+                        "imu_env_mod_use_rate": 1,
+                        "imu_env_mod_max_rol": 60,
+                        "imu_env_mod_max_pit": 60,
+                        "imu_env_mod_gain_rol": 35,
+                        "imu_env_mod_gain_pit": 35,
+                        "imu_env_mod_gain_yaw": 35,
+                        "imu_ang_mod_use_rate": 1,
+                        "imu_ang_mod_max_rol": 60,
+                        "imu_ang_mod_max_pit": 60,
+                        "imu_ang_mod_trim_rol": 0,
+                        "imu_ang_mod_trim_pit": 0,
+                        "imu_ang_mod_gain_rol": 35,
+                        "imu_ang_mod_gain_pit": 35,
+
+
+                        "imu_mod_ch_1_func": 1,
+                        "imu_mod_ch_1_prim": false,
+                        "imu_mod_ch_1_inv": false,
+
+                        "imu_mod_ch_2_func": 2,
+                        "imu_mod_ch_2_prim": false,
+                        "imu_mod_ch_2_inv": false,
+
+                        "imu_mod_ch_3_func": 0,
+                        "imu_mod_ch_3_prim": false,
+                        "imu_mod_ch_3_inv": false,
+
+                        "imu_mod_ch_4_func": 3,
+                        "imu_mod_ch_4_prim": false,
+                        "imu_mod_ch_4_inv": false,
+
+                        "imu_mod_ch_5_func": 0,
+                        "imu_mod_ch_5_prim": false,
+                        "imu_mod_ch_5_inv": false,
+
+                        "imu_mod_ch_6_func": 0,
+                        "imu_mod_ch_6_prim": false,
+                        "imu_mod_ch_6_inv": false,
+
+                        "imu_mod_ch_7_func": 0,
+                        "imu_mod_ch_7_prim": false,
+                        "imu_mod_ch_7_inv": false,
+
+                        "imu_mod_ch_8_func": 0,
+                        "imu_mod_ch_8_prim": false,
+                        "imu_mod_ch_8_inv": false,
+
+                        "imu_mod_ch_9_func": 8,
+                        "imu_mod_ch_9_prim": false,
+                        "imu_mod_ch_9_inv": false,
+
+                        "imu_mod_ch_10_func": 9,
+                        "imu_mod_ch_10_prim": false,
+                        "imu_mod_ch_10_inv": false,
+
+                        "imu_mod_ch_11_func": 0,
+                        "imu_mod_ch_11_prim": false,
+                        "imu_mod_ch_11_inv": false,
+
+                        "imu_mod_ch_12_func": 0,
+                        "imu_mod_ch_12_prim": false,
+                        "imu_mod_ch_12_inv": false,
+
+                        "imu_mod_ch_13_func": 0,
+                        "imu_mod_ch_13_prim": false,
+                        "imu_mod_ch_13_inv": false,
+
+                        "imu_mod_ch_14_func": 0,
+                        "imu_mod_ch_14_prim": false,
+                        "imu_mod_ch_14_inv": false,
+
+                        "imu_mod_ch_15_func": 0,
+                        "imu_mod_ch_15_prim": false,
+                        "imu_mod_ch_15_inv": false,
+
+                        "imu_mod_ch_16_func": 0,
+                        "imu_mod_ch_16_prim": false,
+                        "imu_mod_ch_16_inv": false,
+                    })
+                }
+                if (url === '/imu.json' && method === 'POST') {
+                    return readBody().then(() => sendText(res, 'IMU config saved'))
+                }
                 next()
             })
         }

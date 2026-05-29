@@ -58,6 +58,7 @@ export class App extends LitElement {
                             <li><a id="menu-connections" href="#connections"><span class="mui--align-middle icon--symbols icon--symbols--connections"></span>Connections</a></li>
                             ` : ''}
                             <li><a id="menu-serial" href="#serial"><span class="mui--align-middle icon--symbols icon--symbols--serial"></span>Serial</a></li>
+                            <li><a id="menu-imu" href="#imu"><span class="mui--align-middle icon--symbols icon--symbols--hardware"></span>IMU (Gyro)</a></li>
                             <!-- /FEATURE:NOT IS_TX -->
                             <li><a id="menu-wifi" href="#wifi"><span class="mui--align-middle icon--symbols icon--symbols--wifi"></span>WiFi</a></li>
                             <li><a id="menu-update" href="#update"><span class="mui--align-middle icon--symbols icon--symbols--update"></span>Update</a></li>
@@ -163,6 +164,8 @@ export class App extends LitElement {
                 return !FEATURES.IS_TX && elrsState.config.pwm !== undefined ? '<connections-panel></connections-panel>' : ''
             case 'serial':
                 return !FEATURES.IS_TX ? '<serial-panel></serial-panel>' : ''
+            case 'imu':
+                return !FEATURES.IS_TX ? '<imu-panel></imu-panel>' : ''
             case 'buttons':
                 return FEATURES.IS_TX ? '<buttons-panel></buttons-panel>' : ''
             case 'hardware':
@@ -200,6 +203,7 @@ export class App extends LitElement {
             imports.push(import('./pages/rx-options-panel.js'))
             imports.push(import('./pages/connections-panel.js'))
             imports.push(import('./pages/serial-panel.js'))
+            imports.push(import('./pages/imu-panel.js'))
             // /FEATURE:NOT IS_TX
             await Promise.all(imports)
         } finally {
@@ -224,7 +228,7 @@ export class App extends LitElement {
     }
 
     async ensureLoadedForRoute(route) {
-        const generalRoutes = ['binding', 'options', 'wifi', 'update', 'connections', 'serial', 'buttons', 'models']
+        const generalRoutes = ['binding', 'options', 'wifi', 'update', 'connections', 'serial', 'imu', 'buttons', 'models']
         const advancedRoutes = ['hardware', 'cw', 'lr1121']
         if (generalRoutes.includes(route)) {
             await this.loadGeneralGroup()
