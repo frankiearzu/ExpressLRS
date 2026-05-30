@@ -62,7 +62,11 @@ class MPU_Base
         float ypr[3];        // [yaw, pitch, roll]   yaw/pitch/roll container
 
         virtual bool rawRead(int16_t *ax, int16_t *ay, int16_t *az, int16_t *gx, int16_t *gy, int16_t *gz);
-        void Mahony_update(float ax, float ay, float az, float gx, float gy, float gz, float deltat, Quaternion *q);
+        void Mahony_update(bool useAcc, 
+                           float ax, float ay, float az, 
+                             float gx, float gy, float gz, 
+                             Quaternion *q,
+                             float deltat, float kp, float ki);
 
         virtual bool CalibrateGyro(int8_t loops, rx_config_gyro_calibration_t *offsets);
         virtual bool CalibrateAccel(int8_t loops, rx_config_gyro_calibration_t *offsets);

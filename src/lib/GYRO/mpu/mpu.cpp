@@ -13,6 +13,10 @@
 #define MAX_GYRO_DIFF 200       
 #define MAX_ACC_DIFF  500 
 
+#define SPIN_RATE_LIMIT  20        // Max 20 deg/sec
+
+#define invSqrt(x)  (1.0f / sqrtf(x))
+
 #if defined (USE_FUSION_AHRS)
 #include "Fusion.h"
 
@@ -185,6 +189,39 @@ void MPU_Base::applyOrientation(VectorInt16 *v)
     v->z = t[orientationZ] * orientationSignZ;
 }
 
+static float totalAccG = 0;
+static boolean isAccelHeathty(VectorFloat acc, float *kp, float *ki)
+{
+    #define KP1_LOW_LIMIT 0.975
+    #define KP1_HIGH_LIMIT 1.025
+    #define KP1 2.0
+    #define KI1 0.0
+
+    #define KP2_LOW_LIMIT 0.950
+    #define KP2_HIGH_LIMIT 1.050
+    #define KP2 1.0
+    #define KI2 0.0
+
+    float tmp = sq(acc.x) + sq(acc.y) + sq(acc.z); // sq(acc1G_adc * accScaleG); // Add 1G, since calibrated Acc is relative to 0
+    float totalAcc = sqrtf(tmp);
+
+    totalAccG = totalAcc;
+
+    if ((totalAcc > KP1_LOW_LIMIT ) and ( totalAcc < KP1_HIGH_LIMIT )) { //When total acceleration is within some limits (close 1g)
+        *kp = KP1;
+        *ki = KI1;
+    } else if (( totalAcc > KP2_LOW_LIMIT ) and ( totalAcc < KP2_HIGH_LIMIT )) { //When total acceleration is within some limits (close 1g)
+        *kp = KP2;
+        *ki = KI2;
+    } else {
+        *kp = 0;
+        *ki = 0;
+        return false;
+    }
+
+    return true;
+}
+
 bool MPU_Base::read(float accel_rpy[], float angle_rpy[]) {
     if (orientationIsWrong) return false;
 
@@ -195,6 +232,7 @@ bool MPU_Base::read(float accel_rpy[], float angle_rpy[]) {
         return false;
     }
 
+    // Apply Calibration offsets
     v_accel.x -= cal_accel_offets.x;
     v_accel.y -= cal_accel_offets.y;
     v_accel.z -= cal_accel_offets.z;
@@ -218,16 +256,29 @@ bool MPU_Base::read(float accel_rpy[], float angle_rpy[]) {
     gDeg.y = ((float) v_gyro.y) * gyroScaleDeg;
     gDeg.z = ((float) v_gyro.z) * gyroScaleDeg;
 
+    // Get Acc in Gs
+    VectorFloat accG;
+    accG.x = ((float) v_accel.x) * accScaleG;
+    accG.y = ((float) v_accel.y) * accScaleG;
+    accG.z = ((float) v_accel.z) * accScaleG;
+
     gyroBiasUpdate(gDeg);
+
+    float kp, ki;
+    bool useAcc =  isAccelHeathty(accG, &kp, &ki);
 
     #if defined(USE_FUSION_AHRS)
         FusionVector g, a;
-        // Accel in Gs
-        a.axis.x = v_accel.x * accScaleG;
-        a.axis.y = v_accel.y * accScaleG;
-        a.axis.z = v_accel.z * accScaleG;
+        if (useAcc) {
+            // Copy Acc
+            a.axis.x = accG.x;
+            a.axis.y = accG.y;
+            a.axis.z = accG.z;
+        } else {
+            a = FUSION_VECTOR_ZERO;
+        }
 
-        // Gyro in Deg/sec
+        // Copy Gyro
         g.axis.x = gDeg.x;
         g.axis.y = gDeg.y;
         g.axis.z = gDeg.z;
@@ -258,9 +309,9 @@ bool MPU_Base::read(float accel_rpy[], float angle_rpy[]) {
         ypr[1] = angle_rpy[1];
         ypr[2] = angle_rpy[0];
     #else
-        Mahony_update(v_accel.x, v_accel.y, v_accel.z, 
-                        radians(gDeg.x), radians(gDeg.y), radians(gDeg.z),
-                        deltat, &q);
+        Mahony_update(useAcc, accG.x, accG.y, accG.z, 
+                      radians(gDeg.x), radians(gDeg.y), radians(gDeg.z),
+                      &q, deltat, kp, ki);
 
         GetGravity(&gravity, &q);
         GetYawPitchRoll(ypr, &q, &gravity);
@@ -389,7 +440,6 @@ void MPU_Base::OrientationVerticalExecute() {
     start();
 }
 
-
 //--------------------------------------------------------------------------------------------------
 // Mahony scheme uses proportional and integral filtering on
 // the error between estimated reference vector (gravity) and measured one.
@@ -403,107 +453,79 @@ void MPU_Base::OrientationVerticalExecute() {
 //--------------------------------------------------------------------------------------------------
 // IMU algorithm update
 
-#define KP1_LOW_LIMIT 0.975
-#define KP1_HIGH_LIMIT 1.025
-#define KP1 2.0
-#define KI1 0.0
 
-#define KP2_LOW_LIMIT 0.950
-#define KP2_HIGH_LIMIT 1.050
-#define KP2 1.0
-#define KI2 0.0
-
-// currently ax, ay, az are in raw values (+- 32768) and gx,gy,gz are in rad/sec.
-void MPU_Base::Mahony_update(float ax, float ay, float az, float gx, float gy, float gz, float deltat, Quaternion *q) 
+// currently ax, ay, az are in Gs and gx,gy,gz are in rad/sec.
+void MPU_Base::Mahony_update(bool useAcc, 
+                             float ax, float ay, float az, 
+                             float gx, float gy, float gz, 
+                             Quaternion *q,
+                             float deltat, float kp, float ki) 
 {
 #if not defined(USE_FUSION_AHRS)
-     
-    float recipNorm;
-    float vx, vy, vz;
-    float ex, ey, ez;  //error terms
-    float qa, qb, qc;
-    static float ix = 0.0, iy = 0.0, iz = 0.0;  //integral feedback terms    
-    float kp;
-    float ki;
-
-    float tmp = (ax * ax) + (ay * ay) + (az * az);
-    float totalAccRaw = sqrt(tmp);
-
-    float totalAccG = totalAccRaw / acc1G_adc ; // convert in 1g to perform the comparison and to select best kp and ki
+    static float ix = 0.0, iy = 0.0, iz = 0.0;  //integral feedback terms 
+    float ex=0.0f, ey=0.0f, ez=0.0f;  //error terms
     
-    if (( totalAccG > KP1_LOW_LIMIT ) and ( totalAccG < KP1_HIGH_LIMIT )) { //When total acceleration is within some limits (close 1g)
-        kp = KP1;
-        ki = KI1;
-    } else if (( totalAccG > KP2_LOW_LIMIT ) and ( totalAccG < KP2_HIGH_LIMIT )) { //When total acceleration is within some limits (close 1g)
-        kp = KP2;
-        ki = KI2;
-    } else {
-        kp = 0;
-        ki = 0;
-    }
-
-
-    // 
     // Compute feedback only if accelerometer measurement valid (avoids NaN in accelerometer normalisation)
-    
-    if (tmp > 0.0) {
+    float tmp = sq(ax) + sq(ay) + sq(az);
+    if (useAcc && tmp > 0.01f) {  // Original tmp > 0.0, Rotorflight have it as > 0.01f
         // Normalise accelerometer (assumed to measure the direction of gravity in body frame)
-        recipNorm = 1.0 / totalAccRaw;
+        float recipNorm = invSqrt(tmp);
         ax *= recipNorm;
         ay *= recipNorm;
         az *= recipNorm;
 
         // Estimated direction of gravity in the body frame (factor of two divided out)
-        vx = q->x * q->z - q->w * q->y;
-        vy = q->w * q->x + q->y * q->z;
-        vz = q->w * q->w - 0.5f + q->z * q->z;
+        const float vx = q->x * q->z - q->w * q->y;
+        const float vy = q->w * q->x + q->y * q->z;
+        const float vz = q->w * q->w - 0.5f + q->z * q->z;
 
         // Error is cross product between estimated and measured direction of gravity in body frame
         // (half the actual magnitude)
         ex = (ay * vz - az * vy);
         ey = (az * vx - ax * vz);
         ez = (ax * vy - ay * vx);
+    }
 
-        // Compute and apply to gyro term the integral feedback, if enabled
-        if (ki > 0.0f) {
+    // Compute and apply to gyro term the integral feedback, if enabled
+    if (ki > 0.0f) {
+        // Calculate general spin rate (rad/s)
+        const float spin_rate = sqrtf(sq(gx) + sq(gy) + sq(gz));
+
+        // Stop integrating if spinning beyond the certain limit
+        if (spin_rate < radians(SPIN_RATE_LIMIT)) {
             ix += ki * ex * deltat;  // integral error scaled by Ki
             iy += ki * ey * deltat;
             iz += ki * ez * deltat;
-            gx += ix;  // apply integral feedback
-            gy += iy;
-            gz += iz;
         }
-        
-        if (kp > 0.0 ) {
-            // Apply proportional feedback to gyro term
-            gx += kp * ex;
-            gy += kp * ey;
-            gz += kp * ez;
-        } else { // total gravity is out of limits, discard accelerations and reset I terms
-            ix=0;
-            iy=0;
-            iz=0;
-        } 
+    } else {
+        ix=0; iy=0; iz=0;
     }
+    
+    // Apply proportional and Integral feedback to gyro term
+    gx += kp * ex + ix;
+    gy += kp * ey + iy;
+    gz += kp * ez + iz;
 
     // Integrate rate of change of quaternion, q cross gyro term
-    deltat = 0.5 * deltat;
-    gx *= deltat;   // pre-multiply common factors
+    deltat = 0.5 * deltat;  // pre-multiply common factors
+    gx *= deltat;   
     gy *= deltat;
     gz *= deltat;
-    qa = q->w;
-    qb = q->x;
-    qc = q->y;
-    q->w += (-qb * gx - qc * gy - q->z * gz);
-    q->x += (qa * gx + qc * gz - q->z * gy);
-    q->y += (qa * gy - qb * gz + q->z * gx);
-    q->z += (qa * gz + qb * gy - qc * gx);
+
+    const float tq_w = q->w;
+    const float tq_x = q->x;
+    const float tq_y = q->y;
+
+    q->w += (-tq_x * gx - tq_y * gy - q->z * gz);
+    q->x += (+tq_w * gx + tq_y * gz - q->z * gy);
+    q->y += (+tq_w * gy - tq_x * gz + q->z * gx);
+    q->z += (+tq_w * gz + tq_x * gy - tq_y * gx);
 
     // renormalise quaternion
-    tmp = (q->w * q->w) + (q->x * q->x) + (q->y * q->y) + (q->z * q->z);
-    if ( tmp == 0 ) return;
+    tmp = sq(q->w) + sq(q->x) + sq(q->y) + sq(q->z);
+    if ( tmp == 0 ) return;  // Prevent NaN
 
-    recipNorm = 1.0 / sqrt(tmp);
+    float recipNorm = invSqrt(tmp);
     q->w = q->w * recipNorm;
     q->x = q->x * recipNorm;
     q->y = q->y * recipNorm;
@@ -799,6 +821,7 @@ void MPU_Base::print_gyro_stats(long nowMicros)
     DBGLN("GBias   (x: %s, y: %s, z: %s)",bias_x, bias_y, bias_z);
     DBGLN("Accel   (x: %s, y: %s, z: %s)",accel_x, accel_y, accel_z);
     DBGLN("Gravity (x: %s, y: %s, z: %s)",gravity_x, gravity_y, gravity_z);
+    DBGLN("TotalAccHeath (%f)",totalAccG);
 
     last_gyro_stats_time = millis();
 }
