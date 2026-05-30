@@ -1,44 +1,40 @@
 #pragma once
 
-//#include "helper_3dmath.h"
+#include "helper_3dmath.h"
 #include "gyro_types.h"
+#include "IMUBase.h"
 
-class MPU_Base
+class AHRS
 {
     public:
-        static uint8_t m_address;
         uint8_t     calibrating = false;
         unsigned long read_errors = 0;
-        uint16_t gyroSampleRate = 1000;
 
-        virtual const char * GetMPUName();
-        virtual bool initialize();
+        bool initialize(IMUBase *imu);
+        IMUBase * getIMU() { return imu; };
         
-        virtual void start();
-        virtual uint8_t event();
-        virtual bool isDataReady();
-        virtual bool read(float accel_rpy[], float angle_rpy[]);
+        void start();
+        uint8_t event();
+        bool updateAHRS();
+
+        void getAccel_RPY(float rpy[]);
+        void getAngle_RPY(float rpy[]);
        
-        void calibrate(bool save);
-        virtual void OrientationHorizontalExecute();
-        virtual void OrientationVerticalExecute();
-        virtual bool isRunning();
+        void calibrateLevel(bool save);
+        void OrientationHorizontalExecute();
+        void OrientationVerticalExecute();
+        bool isRunning();
 
         void setupOrientation();
         void applyOrientation(VectorInt16 *v);
-
+     
         void findGravity(int32_t ax, int32_t ay, int32_t az, uint8_t &idx);
         uint8_t readAndGetGravity();
 
-        // I2C Read/Write
-        bool readRegister(uint8_t reg, uint8_t *data, size_t size);
-        void writeRegister(uint8_t reg, uint8_t value);
-        void writeRegisterBits(uint8_t registerID, uint8_t mask, uint8_t value);
-
     protected:
         unsigned long last_gyro_update = 0;
+        IMUBase *imu;
         
-
         // Orientation related variables
         bool orientationIsWrong;    // flag to say that orientation is wrong and so avoid any process of raw data
         uint8_t mpuOrientationH=0;
@@ -53,32 +49,26 @@ class MPU_Base
 
         rx_config_gyro_calibration_t cal_gyro_offsets, cal_accel_offets;
 
-        float   accScaleG, acc1G_adc, gyroScaleRad, gyroScaleDeg;
+        float   accScale1G, gyroScaleRad;
 
         Quaternion  q = Quaternion();        // [w, x, y, z]         quaternion container
         VectorInt16 v_gyro, v_accel;
         VectorFloat gravity; // [x, y, z]            gravity vector    
-        //float euler[3];      // [psi, theta, phi]    Euler angle container
-        float ypr[3];        // [yaw, pitch, roll]   yaw/pitch/roll container
+        //float euler[3];    // [psi, theta, phi]    Euler angle container
+        float accel_rpy[3];  // [roll, yaw, pitch] acceleration rad/sed
+        float angle_rpy[3];  // [roll, yaw, pitch] angles in rad
 
-        virtual bool rawRead(int16_t *ax, int16_t *ay, int16_t *az, int16_t *gx, int16_t *gy, int16_t *gz);
-        void Mahony_update(bool useAcc, 
-                           float ax, float ay, float az, 
-                             float gx, float gy, float gz, 
-                             Quaternion *q,
-                             float deltat, float kp, float ki);
+        bool rawRead(int16_t *ax, int16_t *ay, int16_t *az, int16_t *gx, int16_t *gy, int16_t *gz);
+        void Mahony_update(float ax, float ay, float az, float gx, float gy, float gz, float deltat, Quaternion *q);
 
         virtual bool CalibrateGyro(int8_t loops, rx_config_gyro_calibration_t *offsets);
         virtual bool CalibrateAccel(int8_t loops, rx_config_gyro_calibration_t *offsets);
-        virtual bool AutoCalibrateGyro(int32_t gx, int32_t gy, int32_t gz);
 
-        void GetYawPitchRoll(float *data, Quaternion *q, VectorFloat *gravity);
+        void GetRollPitchYaw(float *rpy, Quaternion *q, VectorFloat *gravity);
         uint8_t GetGravity(VectorFloat *v, Quaternion *q);
 
-        
-
         #ifdef DEBUG_GYRO_STATS
-        void print_gyro_stats(long nowMicros);
+        void print_gyro_stats();
         #endif
         
 };

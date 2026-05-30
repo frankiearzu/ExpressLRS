@@ -15,6 +15,8 @@
 //------------------------------------------------------------------------------
 // Definitions
 
+#define HAS_MAGNETOMETER 0       // 1 to use the Magnetometer code
+
 /**
  * @brief Initial gain used during the initialisation.
  */
@@ -168,9 +170,11 @@ void FusionAhrsUpdate(FusionAhrs *const ahrs, const FusionVector gyroscope, cons
         }
     }
 
+
     // Calculate magnetometer feedback
     FusionVector halfMagnetometerFeedback = FUSION_VECTOR_ZERO;
     ahrs->magnetometerIgnored = true;
+#if HAS_MAGNETOMETER
     if (FusionVectorIsZero(magnetometer) == false) {
 
         // Calculate direction of magnetic field indicated by algorithm
@@ -201,13 +205,17 @@ void FusionAhrsUpdate(FusionAhrs *const ahrs, const FusionVector gyroscope, cons
             halfMagnetometerFeedback = ahrs->halfMagnetometerFeedback;
         }
     }
+#endif
 
     // Convert gyroscope to radians per second scaled by 0.5
     const FusionVector halfGyroscope = FusionVectorMultiplyScalar(gyroscope, FusionDegreesToRadians(0.5f));
 
     // Apply feedback to gyroscope
+#if HAS_MAGNETOMETER    
     const FusionVector adjustedHalfGyroscope = FusionVectorAdd(halfGyroscope, FusionVectorMultiplyScalar(FusionVectorAdd(halfAccelerometerFeedback, halfMagnetometerFeedback), ahrs->rampedGain));
-
+#else
+    const FusionVector adjustedHalfGyroscope = FusionVectorAdd(halfGyroscope, FusionVectorMultiplyScalar(halfAccelerometerFeedback, ahrs->rampedGain));
+#endif
     // Integrate rate of change of quaternion
     ahrs->quaternion = FusionQuaternionAdd(ahrs->quaternion, FusionQuaternionMultiplyVector(ahrs->quaternion, FusionVectorMultiplyScalar(adjustedHalfGyroscope, deltaTime)));
 
