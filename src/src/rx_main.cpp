@@ -1965,7 +1965,7 @@ void resetConfigAndReboot()
     // Prevent WDT from rebooting too early if
     // all this flash write is taking too long
     yield();
-    // Remove options.json and hardware.json
+    // Remove options.json, hardware.json and imu.json
     LittleFS.format();
     yield();
     LittleFS.begin();

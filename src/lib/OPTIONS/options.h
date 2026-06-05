@@ -61,6 +61,7 @@ extern char product_name[];
 extern uint32_t logo_image;
 extern String& getOptions();
 extern String& getHardware();
+extern String& getIMU();
 extern void saveOptions();
 void setOptions(String &options);
 

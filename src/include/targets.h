@@ -80,3 +80,4 @@ extern bool pwmSerialDefined;
 #endif
 
 #include "hardware.h"
+#include "imu.h"

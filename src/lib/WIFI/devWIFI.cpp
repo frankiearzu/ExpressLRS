@@ -192,6 +192,8 @@ static void getFile(AsyncWebServerRequest *request)
     request->send(200, "application/json", getOptions());
   } else if (request->url() == "/hardware.json") {
     request->send(200, "application/json", getHardware());
+  } else if (request->url() == "/imu.json") {
+    request->send(200, "application/json", getIMU());
   } else {
     request->send(LittleFS, request->url().c_str(), "text/plain", true);
   }
@@ -209,6 +211,9 @@ static void HandleReset(AsyncWebServerRequest *request)
 {
   if (request->hasArg("hardware")) {
     LittleFS.remove("/hardware.json");
+  }
+  if (request->hasArg("imu")) {
+    LittleFS.remove("/imu.json");
   }
   if (request->hasArg("options")) {
     LittleFS.remove("/options.json");
@@ -1098,6 +1103,7 @@ static void startServices()
   DefaultHeaders::Instance().addHeader("Access-Control-Allow-Headers", "*");
 
   server.on("/hardware.json", HTTP_GET | HTTP_POST, getFile, nullptr, putFile);
+  server.on("/imu.json", HTTP_GET | HTTP_POST, getFile, nullptr, putFile);
   server.on("/options.json", HTTP_GET, getFile);
   server.on("/reboot", HandleReboot);
   server.on("/reset", HandleReset);
