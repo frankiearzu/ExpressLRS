@@ -9,6 +9,9 @@ export const PWM_MODE_SERIAL = 10;
 export const PWM_MODE_SERIAL2RX = 14;
 export const PWM_MODE_SERIAL2TX = 15;
 
+const PWM_MAX_VALUE = 2523;
+const PWN_MIN_VALUE = 476;
+
 @customElement('connections-panel')
 class ConnectionsPanel extends LitElement {
     pinModes = []
@@ -205,8 +208,8 @@ class ConnectionsPanel extends LitElement {
                 <td>${this._enumSelectGenerate(`pwm_${index}_fsmode`, failsafeMode, ['Set Position', 'No Pulses', 'Last Position'],
                         (e) => {this._failsafeModeChange(e.target, index)})}</td>
                 <td><div class="mui-textfield compact"><input id="pwm_${index}_fs" value="${failsafe}" size="6" class="pwmitm" /></div></td>
-                <td><div class="mui-textfield compact"><input id="pwm_${index}_limit_min" value="${item.limits.min}" size="6"/></div></td>
-                <td><div class="mui-textfield compact"><input id="pwm_${index}_limit_max" value="${item.limits.max}" size="6"/></div></td>
+                <td><div class="mui-textfield compact"><input id="pwm_${index}_limit_min" value="${item.limits ? item.limits.min : PWN_MIN_VALUE}" size="6"/></div></td>
+                <td><div class="mui-textfield compact"><input id="pwm_${index}_limit_max" value="${item.limits ? item.limits.max : PWM_MAX_VALUE}" size="6"/></div></td>
                 </tr>
             `);
             this.pinModes[index] = mode
@@ -307,8 +310,8 @@ class ConnectionsPanel extends LitElement {
             const limitMinField = _(`pwm_${ch}_limit_min`);
             const limitMaxField = _(`pwm_${ch}_limit_max`);
             let failsafe = failsafeField.value
-            if (failsafe > 2523) failsafe = 2523;
-            if (failsafe < 476) failsafe = 476;
+            if (failsafe > PWM_MAX_VALUE) failsafe = PWM_MAX_VALUE;
+            if (failsafe < PWN_MIN_VALUE) failsafe = PWN_MIN_VALUE;
             failsafeField.value = failsafe
             let failsafeMode = failsafeModeField.value
 
