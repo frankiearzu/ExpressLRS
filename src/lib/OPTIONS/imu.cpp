@@ -109,6 +109,26 @@ static const struct {
     {IMU_channel_16_function, "imu_channel_16_function", INT},
     {IMU_channel_16_primary, "imu_channel_16_primary", BOOL},
     {IMU_channel_16_invert, "imu_channel_16_invert", BOOL},
+
+    {IMU_rate_roll_gain_p, "imu_rate_roll_gain_p", INT},
+    {IMU_rate_roll_gain_i, "imu_rate_roll_gain_i", INT},
+    {IMU_rate_roll_gain_d, "imu_rate_roll_gain_d", INT},
+    {IMU_rate_pitch_gain_p, "imu_rate_pitch_gain_p", INT},
+    {IMU_rate_pitch_gain_i, "imu_rate_pitch_gain_i", INT},
+    {IMU_rate_pitch_gain_d, "imu_rate_pitch_gain_d", INT},
+    {IMU_rate_yaw_gain_p, "imu_rate_yaw_gain_p", INT},
+    {IMU_rate_yaw_gain_i, "imu_rate_yaw_gain_i", INT},
+    {IMU_rate_yaw_gain_d, "imu_rate_yaw_gain_d", INT},
+
+    {IMU_envelope_roll_gain_p, "imu_envelope_roll_gain_p", INT},
+    {IMU_envelope_roll_gain_i, "imu_envelope_roll_gain_i", INT},
+    {IMU_envelope_roll_gain_d, "imu_envelope_roll_gain_d", INT},
+    {IMU_envelope_pitch_gain_p, "imu_envelope_pitch_gain_p", INT},
+    {IMU_envelope_pitch_gain_i, "imu_envelope_pitch_gain_i", INT},
+    {IMU_envelope_pitch_gain_d, "imu_envelope_pitch_gain_d", INT},
+    {IMU_envelope_yaw_gain_p, "imu_envelope_yaw_gain_p", INT},
+    {IMU_envelope_yaw_gain_i, "imu_envelope_yaw_gain_i", INT},
+    {IMU_envelope_yaw_gain_d, "imu_envelope_yaw_gain_d", INT},
 };
 
 typedef union {

@@ -95,6 +95,26 @@ typedef enum {
     IMU_channel_16_primary,
     IMU_channel_16_invert,
 
+    IMU_rate_roll_gain_p,
+    IMU_rate_roll_gain_i,
+    IMU_rate_roll_gain_d,
+    IMU_rate_pitch_gain_p,
+    IMU_rate_pitch_gain_i,
+    IMU_rate_pitch_gain_d,
+    IMU_rate_yaw_gain_p,
+    IMU_rate_yaw_gain_i,
+    IMU_rate_yaw_gain_d,
+
+    IMU_envelope_roll_gain_p,
+    IMU_envelope_roll_gain_i,
+    IMU_envelope_roll_gain_d,
+    IMU_envelope_pitch_gain_p,
+    IMU_envelope_pitch_gain_i,
+    IMU_envelope_pitch_gain_d,
+    IMU_envelope_yaw_gain_p,
+    IMU_envelope_yaw_gain_i,
+    IMU_envelope_yaw_gain_d,
+
     IMU_LAST
 } imuNameType;
 
