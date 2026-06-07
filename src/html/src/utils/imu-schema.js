@@ -21,7 +21,7 @@ const IMU_SCHEMA = [
             {
                 title: 'Receiver orientation', rows: [
                     {
-                        id: 'imu_orient_z',
+                        id: 'imu_orientation_z',
                         label: 'Label orientation',
                         type: 'select',
                         options: [
@@ -35,7 +35,7 @@ const IMU_SCHEMA = [
                         ], desc: 'Orientation of the receiver label'
                     },
                     {
-                        id: 'imu_orient_y',
+                        id: 'imu_orientation_y',
                         label: 'PWM pins orientation',
                         type: 'select',
                         options: [
@@ -59,7 +59,7 @@ const IMU_SCHEMA = [
             {
                 title: 'Flight mode switch', rows: [
                     {
-                        id: 'imu_mod_ch_pos_n100',
+                        id: 'imu_mode_channel_position_n100',
                         label: 'Position -100%',
                         type: 'select',
                         options: [
@@ -70,7 +70,7 @@ const IMU_SCHEMA = [
                         ], desc: 'Flight mode selected when the channel assigned to the flight mode selection has value -100%'
                     },
                     {
-                        id: 'imu_mod_ch_pos_n50',
+                        id: 'imu_mode_channel_position_n50',
                         label: 'Position -50%',
                         type: 'select',
                         options: [
@@ -81,7 +81,7 @@ const IMU_SCHEMA = [
                         ], desc: 'Flight mode selected when the channel assigned to the flight mode selection has value -50%'
                     },
                     {
-                        id: 'imu_mod_ch_pos_0',
+                        id: 'imu_mode_channel_position_0',
                         label: 'Position 0',
                         type: 'select',
                         options: [
@@ -92,7 +92,7 @@ const IMU_SCHEMA = [
                         ], desc: 'Flight mode selected when the channel assigned to the flight mode selection has value zero'
                     },
                     {
-                        id: 'imu_mod_ch_pos_50',
+                        id: 'imu_mode_channel_position_50',
                         label: 'Position 50%',
                         type: 'select',
                         options: [
@@ -103,7 +103,7 @@ const IMU_SCHEMA = [
                         ], desc: 'Flight mode selected when the channel assigned to the flight mode selection has value 50%'
                     },
                     {
-                        id: 'imu_mod_ch_pos_100',
+                        id: 'imu_mode_channel_position_100',
                         label: 'Position 100%',
                         type: 'select',
                         options: [
@@ -123,7 +123,7 @@ const IMU_SCHEMA = [
             {
                 title: 'Rate mode', rows: [
                     {
-                        id: 'imu_rate_sens',
+                        id: 'imu_rate_sensitivity',
                         label: 'Gain sensitivity',
                         type: 'select',
                         options: [
@@ -136,7 +136,7 @@ const IMU_SCHEMA = [
                         type: 'spacer'
                     },
                     {
-                        id: 'imu_rate_mod_stick_prio',
+                        id: 'imu_rate_mode_stick_priority',
                         label: 'Stick priority',
                         type: 'uint',
                         unit: '%',
@@ -147,7 +147,7 @@ const IMU_SCHEMA = [
                         type: 'spacer'
                     },
                     {
-                        id: 'imu_rate_mod_gain_rol',
+                        id: 'imu_rate_mode_gain_roll',
                         label: 'Roll gain',
                         type: 'uint',
                         unit: '%',
@@ -155,7 +155,7 @@ const IMU_SCHEMA = [
                         desc: 'Fraction of total movement used to stabilize the aircraft. (30% is a good start.)'
                     },
                     {
-                        id: 'imu_rate_mod_gain_pit',
+                        id: 'imu_rate_mode_gain_pitch',
                         label: 'Pitch gain',
                         type: 'uint',
                         unit: '%',
@@ -164,7 +164,7 @@ const IMU_SCHEMA = [
                     },
                     ,
                     {
-                        id: 'imu_rate_mod_gain_yaw',
+                        id: 'imu_rate_mode_gain_yaw',
                         label: 'Yaw gain',
                         type: 'uint',
                         unit: '%',
@@ -179,7 +179,7 @@ const IMU_SCHEMA = [
             {
                 title: 'Envelope mode', rows: [
                     {
-                        id: 'imu_env_mod_use_rate',
+                        id: 'imu_envelope_mode_use_rate',
                         label: 'Use Rate',
                         type: 'checkbox',
                         desc: 'Use in combination with Rate mode for stabilization'
@@ -188,7 +188,7 @@ const IMU_SCHEMA = [
                         type: 'spacer'
                     },
                     {
-                        id: 'imu_env_mod_max_rol',
+                        id: 'imu_envelope_mode_max_rol',
                         label: 'Max roll angle',
                         type: 'uint',
                         unit: 'deg',
@@ -196,7 +196,7 @@ const IMU_SCHEMA = [
                         desc: 'Maximum bank angle'
                     },
                     {
-                        id: 'imu_env_mod_max_pit',
+                        id: 'imu_envelope_mode_max_pit',
                         label: 'Max pitch angle',
                         type: 'uint',
                         unit: 'deg',
@@ -207,7 +207,7 @@ const IMU_SCHEMA = [
                         type: 'spacer'
                     },
                     {
-                        id: 'imu_env_mod_gain_rol',
+                        id: 'imu_envelope_mode_gain_rol',
                         label: 'Roll gain',
                         type: 'uint',
                         unit: '%',
@@ -215,7 +215,7 @@ const IMU_SCHEMA = [
                         desc: 'Fraction of total movement used to keep the aircraft at max angle. (35% is a good start for soft movement.)'
                     },
                     {
-                        id: 'imu_env_mod_gain_pit',
+                        id: 'imu_envelope_mode_gain_pit',
                         label: 'Pitch gain',
                         type: 'uint',
                         unit: '%',
@@ -224,7 +224,7 @@ const IMU_SCHEMA = [
                     },
                     ,
                     {
-                        id: 'imu_env_mod_gain_yaw',
+                        id: 'imu_envelope_mode_gain_yaw',
                         label: 'Yaw gain',
                         type: 'uint',
                         unit: '%',
@@ -239,7 +239,7 @@ const IMU_SCHEMA = [
             {
                 title: 'Auto-level mode', rows: [
                     {
-                        id: 'imu_ang_mod_use_rate',
+                        id: 'imu_angle_mode_use_rate',
                         label: 'Use Rate',
                         type: 'checkbox',
                         desc: 'Use in combination with Rate mode for stabilization'
@@ -248,7 +248,7 @@ const IMU_SCHEMA = [
                         type: 'spacer'
                     },
                     {
-                        id: 'imu_ang_mod_max_rol',
+                        id: 'imu_angle_mode_max_rol',
                         label: 'Max roll angle',
                         type: 'uint',
                         unit: 'deg',
@@ -256,7 +256,7 @@ const IMU_SCHEMA = [
                         desc: 'Maximum bank angle'
                     },
                     {
-                        id: 'imu_ang_mod_max_pit',
+                        id: 'imu_angle_mode_max_pit',
                         label: 'Max pitch angle',
                         type: 'uint',
                         unit: 'deg',
@@ -267,7 +267,7 @@ const IMU_SCHEMA = [
                         type: 'spacer'
                     },
                     {
-                        id: 'imu_ang_mod_trim_rol',
+                        id: 'imu_angle_mode_trim_rol',
                         label: 'Roll angle trim',
                         type: 'uint',
                         unit: 'deg',
@@ -275,7 +275,7 @@ const IMU_SCHEMA = [
                         desc: 'Positive trim lowers the left wing'
                     },
                     {
-                        id: 'imu_ang_mod_trim_pit',
+                        id: 'imu_angle_mode_trim_pit',
                         label: 'Pitch angle trim',
                         type: 'uint',
                         unit: 'deg',
@@ -286,7 +286,7 @@ const IMU_SCHEMA = [
                         type: 'spacer'
                     },
                     {
-                        id: 'imu_ang_mod_gain_rol',
+                        id: 'imu_angle_mode_gain_rol',
                         label: 'Roll gain',
                         type: 'uint',
                         unit: '%',
@@ -294,7 +294,7 @@ const IMU_SCHEMA = [
                         desc: 'Fraction of total movement used to return the aircraft to level. (35% is a good start for soft movement.)'
                     },
                     {
-                        id: 'imu_ang_mod_gain_pit',
+                        id: 'imu_angle_mode_gain_pit',
                         label: 'Pitch gain',
                         type: 'uint',
                         unit: '%',
@@ -314,7 +314,7 @@ function _generateChannels() {
         const channelNumber = i+1
         const channelName = `CH${channelNumber}`
         fields.push({
-            id: `imu_mod_ch_${channelNumber}_func`,
+            id: `imu_channel_${channelNumber}_function`,
             label: `${channelName}`,
             type: 'select',
             options: [
@@ -331,13 +331,13 @@ function _generateChannels() {
             ], desc: `Function assigned to ${channelName}`
         });
         fields.push({
-            id: `imu_mod_ch_${channelNumber}_prim`,
+            id: `imu_channel_${channelNumber}_primary`,
             label: `${channelName} is primary`,
             type: 'checkbox',
             desc: 'When multiple channels share a function, the primary will be used for calculations.'
         });
         fields.push({
-            id: `imu_mod_ch_${channelNumber}_inv`,
+            id: `imu_channel_${channelNumber}_invert`,
             label: `Invert output to ${channelName}`,
             type: 'checkbox',
             desc: 'If the IMU is correcting in the wrong direction, invert its output.'
