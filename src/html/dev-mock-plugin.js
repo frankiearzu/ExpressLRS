@@ -352,6 +352,26 @@ export function devMockPlugin() {
                         "imu_channel_16_function": 0,
                         "imu_channel_16_primary": false,
                         "imu_channel_16_invert": false,
+
+                        "imu_rate_roll_gain_p": 35,
+                        "imu_rate_roll_gain_i": 0,
+                        "imu_rate_roll_gain_d": 10,
+                        "imu_rate_pitch_gain_p": 35,
+                        "imu_rate_pitch_gain_i": 0,
+                        "imu_rate_pitch_gain_d": 10,
+                        "imu_rate_yaw_gain_p": 35,
+                        "imu_rate_yaw_gain_i": 0,
+                        "imu_rate_yaw_gain_d": 10,
+
+                        "imu_envelope_roll_gain_p": 35,
+                        "imu_envelope_roll_gain_i": 0,
+                        "imu_envelope_roll_gain_d": 10,
+                        "imu_envelope_pitch_gain_p": 35,
+                        "imu_envelope_pitch_gain_i": 0,
+                        "imu_envelope_pitch_gain_d": 10,
+                        "imu_envelope_yaw_gain_p": 35,
+                        "imu_envelope_yaw_gain_i": 0,
+                        "imu_envelope_yaw_gain_d": 10
                     })
                 }
                 if (url === '/imu.json' && method === 'POST') {

@@ -304,7 +304,179 @@ const IMU_SCHEMA = [
                 ]
             }
         ]
-    }
+    },
+    {
+        title: 'Advanced',
+        sections: [
+            {
+                title: 'Rate PID settings', rows: [
+                    {
+                        id: 'imu_rate_roll_gain_p',
+                        label: 'Roll P Gain',
+                        type: 'uint',
+                        unit: '%',
+                        icon: '',
+                        desc: 'Value of proportional gain for the roll PID in rate mode'
+                    },
+                    {
+                        id: 'imu_rate_roll_gain_i',
+                        label: 'Roll I Gain',
+                        type: 'uint',
+                        unit: '%',
+                        icon: '',
+                        desc: 'Value of integral gain for the roll PID in rate mode'
+                    },
+                    {
+                        id: 'imu_rate_roll_gain_d',
+                        label: 'Roll D Gain',
+                        type: 'uint',
+                        unit: '%',
+                        icon: '',
+                        desc: 'Value of derivative gain for the roll PID in rate mode'
+                    },
+                    {
+                        type: 'spacer',
+                    },
+                    {
+                        id: 'imu_rate_pitch_gain_p',
+                        label: 'Pitch P Gain',
+                        type: 'uint',
+                        unit: '%',
+                        icon: '',
+                        desc: 'Value of proportional gain for the pitch PID in rate mode'
+                    },
+                    {
+                        id: 'imu_rate_pitch_gain_i',
+                        label: 'Pitch I Gain',
+                        type: 'uint',
+                        unit: '%',
+                        icon: '',
+                        desc: 'Value of integral gain for the pitch PID in rate mode'
+                    },
+                    {
+                        id: 'imu_rate_pitch_gain_d',
+                        label: 'Pitch D Gain',
+                        type: 'uint',
+                        unit: '%',
+                        icon: '',
+                        desc: 'Value of derivative gain for the pitch PID in rate mode'
+                    },
+                    {
+                        type: 'spacer',
+                    },
+                    {
+                        id: 'imu_rate_yaw_gain_p',
+                        label: 'Yaw P Gain',
+                        type: 'uint',
+                        unit: '%',
+                        icon: '',
+                        desc: 'Value of proportional gain for the yaw PID in rate mode'
+                    },
+                    {
+                        id: 'imu_rate_yaw_gain_i',
+                        label: 'Yaw I Gain',
+                        type: 'uint',
+                        unit: '%',
+                        icon: '',
+                        desc: 'Value of integral gain for the yaw PID in rate mode'
+                    },
+                    {
+                        id: 'imu_rate_yaw_gain_d',
+                        label: 'Yaw D Gain',
+                        type: 'uint',
+                        unit: '%',
+                        icon: '',
+                        desc: 'Value of derivative gain for the yaw PID in rate mode'
+                    },
+                    {
+                        type: 'spacer',
+                    },
+                ],
+            },
+            {
+                title: 'Envelope and Auto-level PID settings', rows: [
+                    {
+                        id: 'imu_envelope_roll_gain_p',
+                        label: 'Roll P Gain',
+                        type: 'uint',
+                        unit: '%',
+                        icon: '',
+                        desc: 'Value of proportional gain for the roll PID in envelope and auto-level mode'
+                    },
+                    {
+                        id: 'imu_envelope_roll_gain_i',
+                        label: 'Roll I Gain',
+                        type: 'uint',
+                        unit: '%',
+                        icon: '',
+                        desc: 'Value of integral gain for the roll PID in envelope and auto-level mode'
+                    },
+                    {
+                        id: 'imu_envelope_roll_gain_d',
+                        label: 'Roll D Gain',
+                        type: 'uint',
+                        unit: '%',
+                        icon: '',
+                        desc: 'Value of derivative gain for the roll PID in envelope and auto-level mode'
+                    },
+                    {
+                        type: 'spacer',
+                    },
+                    {
+                        id: 'imu_envelope_pitch_gain_p',
+                        label: 'Pitch P Gain',
+                        type: 'uint',
+                        unit: '%',
+                        icon: '',
+                        desc: 'Value of proportional gain for the pitch PID in envelope and auto-level mode'
+                    },
+                    {
+                        id: 'imu_envelope_pitch_gain_i',
+                        label: 'Pitch I Gain',
+                        type: 'uint',
+                        unit: '%',
+                        icon: '',
+                        desc: 'Value of integral gain for the pitch PID in envelope and auto-level mode'
+                    },
+                    {
+                        id: 'imu_envelope_pitch_gain_d',
+                        label: 'Pitch D Gain',
+                        type: 'uint',
+                        unit: '%',
+                        icon: '',
+                        desc: 'Value of derivative gain for the pitch PID in envelope and auto-level mode'
+                    },
+                    {
+                        type: 'spacer',
+                    },
+                    {
+                        id: 'imu_envelope_yaw_gain_p',
+                        label: 'Yaw P Gain',
+                        type: 'uint',
+                        unit: '%',
+                        icon: '',
+                        desc: 'Value of proportional gain for the yaw PID in envelope and auto-level mode'
+                    },
+                    {
+                        id: 'imu_envelope_yaw_gain_i',
+                        label: 'Yaw I Gain',
+                        type: 'uint',
+                        unit: '%',
+                        icon: '',
+                        desc: 'Value of integral gain for the yaw PID in envelope and auto-level mode'
+                    },
+                    {
+                        id: 'imu_envelope_yaw_gain_d',
+                        label: 'Yaw D Gain',
+                        type: 'uint',
+                        unit: '%',
+                        icon: '',
+                        desc: 'Value of derivative gain for the yaw PID in envelope and auto-level mode'
+                    },
+                ],
+            },
+        ],
+    },
 ];
 
 function _generateChannels() {
