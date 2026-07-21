@@ -1,7 +1,8 @@
 #include "config.h"
 #include "gyro.h"
+#include "logging.h"
 
-#if defined(HAS_GYRO)
+#if defined(GYRO_SUPPORT)
 
 static char *wingTypeName[]={"Empty","Normal","2-Ail","Delta"};
 static char *tailTypeName[]={"Empty","Normal","V-Tail","Taileron","Rud-Only"};
@@ -27,6 +28,12 @@ void gyroSetConfigDefaults() {
             config.SetGyroPIDRate(group, axis,GYRO_RATE_VARIABLE_D, 10);
         }
     }
+
+    // MADWICK PI
+    config.SetGyroPIDRate(GYRO_PID_GROUP_MADWICK, GYRO_AXIS_ROLL, GYRO_RATE_VARIABLE_P, 20);
+    config.SetGyroPIDRate(GYRO_PID_GROUP_MADWICK, GYRO_AXIS_ROLL, GYRO_RATE_VARIABLE_I, 00);
+    config.SetGyroPIDRate(GYRO_PID_GROUP_MADWICK, GYRO_AXIS_ROLL, GYRO_RATE_VARIABLE_D, 00);
+ 
 
     // Configure channel Functions
     for (int ch=0;ch<CRSF_NUM_CHANNELS;ch++) {
@@ -128,7 +135,7 @@ bool gyroIsVisible(gyro_mode_t fm, gyro_ui_vibility_t category) {
     return ret;
 }
 
- void gyroUpgrade2_to_3()
+ static void gyroUpgrade2_to_3()
  {
       for (int fm=GYRO_MODE_RATE; fm <= GYRO_MODE_LAST_ACTIVE; fm++) { // Skip Gyro OFF, 1 based 
         rx_config_gyro_fmode_t tmp;
@@ -144,6 +151,25 @@ bool gyroIsVisible(gyro_mode_t fm, gyro_ui_vibility_t category) {
         config.SetGyroFModeRaw((gyro_mode_t) fm, tmp.raw);
     }
  }
+
+  void gyroUpgrade(uint8_t version) {
+    if (version == 2) {
+      gyroUpgrade2_to_3();
+      version = 3;
+    }
+
+    if (version == 3) {
+        const rx_config_gyro_PID_t *madwickPI = config.GetGyroPID(GYRO_PID_GROUP_MADWICK,GYRO_AXIS_ROLL);
+        if (madwickPI->p==0) {  // Madwick not configured
+            DBGLN("Setting Defaults for Madwick-AHRS");
+            // MADWICK PI  (P=2.0, I=0.0)
+            config.SetGyroPIDRate(GYRO_PID_GROUP_MADWICK, GYRO_AXIS_ROLL, GYRO_RATE_VARIABLE_P, 20);
+            config.SetGyroPIDRate(GYRO_PID_GROUP_MADWICK, GYRO_AXIS_ROLL, GYRO_RATE_VARIABLE_I, 00);
+            config.SetGyroPIDRate(GYRO_PID_GROUP_MADWICK, GYRO_AXIS_ROLL, GYRO_RATE_VARIABLE_D, 00);
+        }
+      //gyroUpgrade3_to_4();
+    }
+  }
 
 /* encode/decode negative numbers in 6 bits*/
 int8_t gyro_trim_decode(int8_t n) 

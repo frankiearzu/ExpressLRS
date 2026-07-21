@@ -1,17 +1,17 @@
 #pragma once
 #include "targets.h"
 
-#if defined(HAS_GYRO)
+#if defined(GYRO_SUPPORT)
 #include "device.h"
 #include "config.h"
 #include "pid.h"
 #include "gyro_types.h"
 #include <math.h>
 //#include "helper_3dmath.h"
-#include "mpu/mpu.h"
+#include "ahrs/ahrs.h"
 #include "modes/mode.h"
 
-#define GYRO_CODE_VERSION   1.16
+#define GYRO_CODE_VERSION   1.17
 
 #define GYRO_US_MIN 885             // was 988
 #define GYRO_US_MID 1500
@@ -33,7 +33,7 @@
 class Gyro
 {
 public:
-    void init(MPU_Base *mpu);
+    void init(AHRS *ahrs);
     void start();
 
     gyro_status_t getStatus();
@@ -41,9 +41,6 @@ public:
     const char * getMPUName();
     void mixerInput();
     void mixerOutput(uint8_t ch, uint16_t *us);
-    void send_telemetry();
-    //bool read_device();
-    int tick();
     uint8_t event();
     void calibrate();
     void reload();
@@ -53,18 +50,14 @@ public:
     bool isStickCalibrationNeeded();
 
     unsigned long getIMUReadErrors();
-    MPU_Base *mpuDev = nullptr;
-
+    
     float master_gain = 1.0;
     float gain_factor = 1.0;
     gyro_mode_t gyro_mode;
+    AHRS * ahrs;
 // protected:
 
     // orientation/motion vars
-    
-    float acc_rpy[3];     // [roll, pitch, yaw] accelearion
-    float angle_rpy[3];   // [roll, pitch, yaw] angles
-
     bool initialized;
     gyro_learn_state_t learn_state = GYRO_LEARN_OFF;
     char lastErrorText[30];
@@ -103,7 +96,7 @@ void configure_pid_gains(PID* pid, const rx_config_gyro_PID_t* pid_params, int8_
 
 
 void gyroSetConfigDefaults();
-void gyroUpgrade2_to_3();
+void gyroUpgrade(uint8_t version);
 bool gyroIsVisible(gyro_mode_t fm, gyro_ui_vibility_t category);
 
 extern int8_t gyro_trim_encode(int8_t n);

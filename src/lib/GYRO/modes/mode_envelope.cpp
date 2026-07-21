@@ -1,11 +1,9 @@
 #include "gyro.h"
 
-#if defined(HAS_GYRO)
+#if defined(GYRO_SUPPORT)
 #include "config.h"
 #include "crsf_protocol.h"
-
 #include "mode_envelope.h"
-#include "mixer.h"
 #include "pid.h"
 #include "gyro_types.h"
 #include "logging.h"
@@ -111,9 +109,9 @@ void AngEnvelopeController::initialize(gyro_mode_t mode)
 }
 
 
-void AngEnvelopeController::calculate_pid(float input_rpy[], float acc_rpy[], float ang_rpy[])
+void AngEnvelopeController::calculate_pid(float input_rpy[], float gyro_rpy[], float ang_rpy[])
 {
-    RateController::calculate_pid(input_rpy, acc_rpy, ang_rpy);
+    RateController::calculate_pid(input_rpy, gyro_rpy, ang_rpy);
 
     // Adjust angle with Level Trims
     float pitch_angle = - ang_rpy[GYRO_AXIS_PITCH] + degToRad(gyro_trim_decode(fm_settings.val.trimPitch));

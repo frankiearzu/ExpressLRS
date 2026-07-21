@@ -80,7 +80,7 @@ typedef enum {
 
     LSM6DXX_VAL_CTRL2_G_2000DPS = 0x03,       // gyro 2000dps scale
 
-    // LSM6DXX_VAL_CTRL3_C_BDU = BIT(6),         // (bit 6) output registers are not updated until MSB and LSB have been read (prevents MSB from being updated while burst reading LSB/MSB)
+    LSM6DXX_VAL_CTRL3_C_BDU = BIT(6),         // (bit 6) output registers are not updated until MSB and LSB have been read (prevents MSB from being updated while burst reading LSB/MSB)
     LSM6DXX_VAL_CTRL3_C_H_LACTIVE = 0,        // (bit 5) interrupt pins active high
     LSM6DXX_VAL_CTRL3_C_PP_OD = 0,            // (bit 4) interrupt pins push/pull
     LSM6DXX_VAL_CTRL3_C_SIM = 0,              // (bit 3) SPI 4-wire interface mode
@@ -91,10 +91,12 @@ typedef enum {
     LSM6DXX_VAL_CTRL4_C_SPI_DISABLE = BIT(3), // (bit 3) disable SPI interface
     LSM6DXX_VAL_CTRL4_C_LPF1_SEL_G = BIT(1),  // (bit 1) enable gyro LPF1
     LSM6DXX_VAL_CTRL6_C_XL_HM_MODE = 0,       // (bit 4) enable accelerometer high performance mode
-    LSM6DXX_VAL_CTRL6_C_FTYPE_335HZ = 0x00,   // (bits 2:0) gyro LPF1 cutoff 335.5Hz
-    LSM6DXX_VAL_CTRL6_C_FTYPE_232HZ = 0x01,   // (bits 2:0) gyro LPF1 cutoff 232.0Hz
-    LSM6DXX_VAL_CTRL6_C_FTYPE_171HZ = 0x02,   // (bits 2:0) gyro LPF1 cutoff 171.1Hz
-    LSM6DXX_VAL_CTRL6_C_FTYPE_609HZ = 0x03,   // (bits 2:0) gyro LPF1 cutoff 609.0Hz
+    LSM6DXX_VAL_CTRL6_C_FTYPE_335HZ = 0x00,   // (bits 2:0) gyro LPF1 cutoff 304.2Hz on ODR=1.6kh
+    LSM6DXX_VAL_CTRL6_C_FTYPE_232HZ = 0x01,   // (bits 2:0) gyro LPF1 cutoff 220.7Hz on ODR=1.6kh
+    LSM6DXX_VAL_CTRL6_C_FTYPE_171HZ = 0x02,   // (bits 2:0) gyro LPF1 cutoff 166.6Hz on ODR=1.6kh
+    LSM6DXX_VAL_CTRL6_C_FTYPE_609HZ = 0x03,   // (bits 2:0) gyro LPF1 cutoff 453.2Hz on ODR=1.6kh
+    LSM6DXX_VAL_CTRL6_C_FTYPE_99HZ  = 0x04,   // (bits 2:0) gyro LPF1 cutoff 99.6Hz  on ODR=1.6kh
+    LSM6DXX_VAL_CTRL6_C_FTYPE_49HZ  = 0x05,   // (bits 2:0) gyro LPF1 cutoff 49.8Hz  on ODR=1.6kh
     LSM6DXX_VAL_CTRL7_G_HP_EN_G = BIT(6),   // (bit 6) enable gyro high-pass filter
     LSM6DXX_VAL_CTRL7_G_HPM_G_16 = 0x00,      // (bits 5:4) gyro HPF cutoff 16mHz
     LSM6DXX_VAL_CTRL7_G_HPM_G_65 = 0x01,      // (bits 5:4) gyro HPF cutoff 65mHz
@@ -118,13 +120,6 @@ typedef enum {
 
 } lsm6dxxConfigMasks_e;
 
-typedef enum {
-    GYRO_HARDWARE_LPF_NORMAL,
-    GYRO_HARDWARE_LPF_OPTION_1,
-    GYRO_HARDWARE_LPF_OPTION_2,
-    GYRO_HARDWARE_LPF_EXPERIMENTAL,
-    GYRO_HARDWARE_LPF_COUNT
-} gyroHardwareLpf_e;
 
 #define LSM6DSO_CHIP_ID 0x6C
 #define LSM6DSL_CHIP_ID 0x6A

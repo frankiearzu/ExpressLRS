@@ -1,10 +1,10 @@
-#if defined(HAS_GYRO)
+#if defined(GYRO_SUPPORT)
 
 #include "gyro.h"
-#include "mixer.h"
 #include "mode_rate.h"
 #include "pid.h"
 #include "logging.h"
+#include "utils.h"
 
 /**
  * Airplane Normal Mode / Rate Mode
@@ -125,7 +125,7 @@ void RateController::calculate_stick_pri(float input_rpt[]) {
     }
 }
 
-void RateController::calculate_pid(float input_rpy[], float acc_rpy[], float ang_rpy[])
+void RateController::calculate_pid(float input_rpy[], float gyro_rpy[], float ang_rpy[])
 {
     ignore_input[0] = ignore_input[1] = ignore_input[2] = false;
 
@@ -150,9 +150,9 @@ void RateController::calculate_pid(float input_rpy[], float acc_rpy[], float ang
     const float ADJUSTMENT_FACTOR = 0.25  * gyro.gain_factor;
     
     // Desired angular rate is zero
-    pid_roll.calculate(0,   acc_rpy[GYRO_AXIS_ROLL]  * ADJUSTMENT_FACTOR);
-    pid_pitch.calculate(0,  acc_rpy[GYRO_AXIS_PITCH] * ADJUSTMENT_FACTOR);
-    pid_yaw.calculate(0,   -acc_rpy[GYRO_AXIS_YAW]   * ADJUSTMENT_FACTOR);
+    pid_roll.calculate(0,   gyro_rpy[GYRO_AXIS_ROLL]  * ADJUSTMENT_FACTOR);
+    pid_pitch.calculate(0,  gyro_rpy[GYRO_AXIS_PITCH] * ADJUSTMENT_FACTOR);
+    pid_yaw.calculate(0,   -gyro_rpy[GYRO_AXIS_YAW]   * ADJUSTMENT_FACTOR);
 
 
     float total_gain =  gyro.master_gain;
@@ -164,8 +164,8 @@ void RateController::calculate_pid(float input_rpy[], float acc_rpy[], float ang
 #if defined(DEBUG_LOG)
 void RateController::printState() {
         char piddebug[128];
-        DBGLN("TOTAL MASTER GAIN %f.  IMU_ReadErrors=%d", gyro.master_gain * gyro.gain_factor, gyro.getIMUReadErrors());
-        sprintf(piddebug,"Roll:%5.2f Pitch:%5.2f Yaw:%5.2f", radToDeg(gyro.angle_rpy[0]), radToDeg(gyro.angle_rpy[1]), radToDeg(gyro.angle_rpy[2])); 
+        DBGLN("TOTAL MASTER GAIN %f.  IMU: Read Err=%d Int_Err=%d", gyro.master_gain * gyro.gain_factor, gyro.ahrs->read_errors, gyro.ahrs->int_errors);
+        sprintf(piddebug,"Roll:%5.2f Pitch:%5.2f Yaw:%5.2f", radToDeg(gyro.ahrs->angle_rpy[0]), radToDeg(gyro.ahrs->angle_rpy[1]), radToDeg(gyro.ahrs->angle_rpy[2])); 
         DBGLN("Angles:  %s",piddebug);
         sprintf(piddebug,"Roll:%5.2f Pitch:%5.2f Yaw:%5.2f", input_rpy[GYRO_AXIS_ROLL], input_rpy[GYRO_AXIS_PITCH], input_rpy[GYRO_AXIS_YAW]);    
         DBGLN("Cmds:    %s",piddebug);

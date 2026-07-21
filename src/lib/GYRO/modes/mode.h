@@ -8,7 +8,7 @@ class Mode_Base
 {
     public:
         virtual void    initialize(gyro_mode_t mode);
-        virtual void    calculate_pid(float input_rpt[], float acc_rpy[], float ang_rpy[]);
+        virtual void    calculate_pid(float input_rpt[], float gyro_rpy[], float ang_rpy[]);
         #if defined(DEBUG_LOG)
         virtual void    printState();
         #endif

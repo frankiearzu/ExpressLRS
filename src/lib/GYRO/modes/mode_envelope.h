@@ -1,5 +1,4 @@
 #pragma once
-#include "mixer.h"
 #include "gyro.h"
 #include "mode_rate.h"
 
@@ -7,7 +6,7 @@ class AngEnvelopeController: public RateController
 {
     public:
         void    initialize(gyro_mode_t mode);
-        void    calculate_pid(float input_rpy[], float acc_rpy[], float ang_rpy[]);
+        void    calculate_pid(float input_rpy[], float gyro_rpy[], float ang_rpy[]);
         #if defined(DEBUG_LOG)
         void    printState();
         #endif

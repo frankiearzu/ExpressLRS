@@ -1,11 +1,10 @@
 #include "gyro.h"
 
-#if defined(HAS_GYRO)
+#if defined(GYRO_SUPPORT)
 #include "config.h"
 #include "crsf_protocol.h"
 
 #include "mode_auto_level.h"
-#include "mixer.h"
 #include "pid.h"
 #include "gyro_types.h"
 #include "logging.h"
@@ -41,9 +40,9 @@ void LevelController::initialize(gyro_mode_t mode)
     ignore_input[0] = ignore_input[1] = ignore_input[2] = false;
 }
 
-void LevelController::calculate_pid(float input_rpy[], float acc_rpy[], float ang_rpy[])
+void LevelController::calculate_pid(float input_rpy[], float gyro_rpy[], float ang_rpy[])
 {
-    RateController::calculate_pid(input_rpy, acc_rpy, ang_rpy);
+    RateController::calculate_pid(input_rpy, gyro_rpy, ang_rpy);
 
     // In Level mode, the Gyro has full control of [Pitch, Roll], not the command
     ignore_input[GYRO_AXIS_ROLL] = ignore_input[GYRO_AXIS_PITCH] = true;
@@ -83,7 +82,7 @@ void LevelController::calculate_pid(float input_rpy[], float acc_rpy[], float an
 #if defined(DEBUG_LOG)
 void LevelController::printState() {
     RateController::printState();
-    DBGLN("IsInverted = %d,  IsHighPitch=%d", isInverted(gyro.angle_rpy), isHighPitch(gyro.angle_rpy));
+    DBGLN("IsInverted = %d,  IsHighPitch=%d", isInverted(gyro.ahrs->angle_rpy), isHighPitch(gyro.ahrs->angle_rpy));
     DBGLN("IgnoreCmd:  Roll:%d Pitch:%d ", ignore_input[GYRO_AXIS_ROLL], ignore_input[GYRO_AXIS_PITCH]);
     DBGLN("Ang Corr:   Roll:%f Pitch:%f", pid_angle_roll.output, pid_angle_pitch.output);
 

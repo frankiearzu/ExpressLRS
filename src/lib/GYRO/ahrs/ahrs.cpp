@@ -3,24 +3,29 @@
 // Comment to use old Algorithm openXsensor/UNI-RX algorithm instead of Fusin AHRS
 //#define USE_FUSION_AHRS
 
-#if defined(HAS_GYRO)
-#include "mpu.h"
+#if defined(GYRO_SUPPORT)
+#include "ahrs.h"
 #include "logging.h"
 #include "config.h"
-#include "mpu_biasFilter.h"
-#include <Wire.h>
+#include "biasFilter.h"
+#include "filter.h"
+//#include <Wire.h>
 
 #define MAX_GYRO_DIFF 200       
 #define MAX_ACC_DIFF  500 
 
-#define SPIN_RATE_LIMIT  20        // Max 20 deg/sec
+#define SPIN_RATE_LIMIT  20                // Max 20 deg/sec
+#define ATTITUDE_RESET_QUIET_TIME 250      // 250ms - gyro quiet period after after ACC out of range
+#define ATTITUDE_RESET_GYRO_LIMIT 15       // 15 deg/sec - gyro limit for quiet period
+#define ATTITUDE_RESET_KP_GAIN    10.0     // dcmKpGain value to use during attitude reset
+#define ATTITUDE_RESET_ACTIVE_TIME 500     // 500ms - Time to wait for attitude to converge at high gain
 
 #define invSqrt(x)  (1.0f / sqrtf(x))
 
 #if defined (USE_FUSION_AHRS)
 #include "Fusion.h"
 
-static FusionAhrs ahrs;
+static FusionAhrs fusion_ahrs;
 
 #endif
 
@@ -52,22 +57,76 @@ static int8_t orientationList[36][6] = {
 
 {0,1,2,1,-1,-1}, {0,1,2,-1,1,-1}, {1,0,2,1,1,-1}, {1,0,2,-1,-1,-1}, {3,3,3,0,0,0}, {3,3,3,0,0,0}};
 
+int8_t accLpfCutHz = 0;
+int8_t gyroLpfCutHz = 0;
 
-bool MPU_Base::initialize() {
+static  LowpassFilter accFilter[3];
+static  LowpassFilter gyroFilter[3];
+
+bool AHRS::initialize(IMU_Driver *driver) {
+    this->driver = driver;
+
     orientationIsWrong = true;
-    //imgGyroCalNeeded = true;
-    memset(&cal_gyro_offsets,0,sizeof(cal_gyro_offsets));
-    memset(&cal_accel_offets,0,sizeof(cal_accel_offets));
+    initialized        = false;
+    memset(&calGyroOffsets,0,sizeof(calGyroOffsets));
+    memset(&calAccelOffets,0,sizeof(calAccelOffets));
     read_errors = 0;
 
     mpuOrientationNames = (char **) (OPT_HAS_GYRO_MPU6050?gyroRxOrientationsHR:gyroRxOrientationsRM);
 
-    gyroBiasInitialise(gyroSampleRate);
+    return false;
+}
 
-#if defined (USE_FUSION_AHRS)    
+/**
+ * Trigger a ahrs to stop until restarted
+*/
+void AHRS::pause()
+{
+    initialized = false;
+}
+
+void AHRS::start() {
+    initialized = false;
+    DBGLN("Ahrs:Start()");
+
+    if (!config.GetGyroEnabled() || driver == nullptr) return; //not enabled
+
+    driver->start();
+
+    memcpy(&calAccelOffets,config.GetAccelCalibration(),sizeof(rx_config_gyro_calibration_t));
+    memcpy(&calGyroOffsets,config.GetGyroCalibration(),sizeof(rx_config_gyro_calibration_t));
+    DBGLN("Acc Offs:  x=%d,y=%d,z=%d",calAccelOffets.x, calAccelOffets.y,calAccelOffets.z);
+    DBGLN("Gyro Offs:  x=%d,y=%d,z=%d",calGyroOffsets.x, calGyroOffsets.y,calGyroOffsets.z);
+
+    setupOrientation();
+
+    read_errors = 0; // Reset Errors
+
+     // Reload Madwick Configuration
+    const rx_config_gyro_PID_t *madwickPI = config.GetGyroPID(GYRO_PID_GROUP_MADWICK,GYRO_AXIS_ROLL);
+    AHRS_KP = (float) madwickPI->p / 10;
+    AHRS_KI = (float) madwickPI->i / 10;
+
+    accLpfCutHz = gyroLpfCutHz = madwickPI->d;
+
+    DBGLN("Setting Madwick kP=%f, kI=%f",AHRS_KP, AHRS_KI);
+    DBGLN("LPF Gyro Settings %d HZ",accLpfCutHz);
+    
+    gyroBias.Initialise(driver->gyroSampleRate);
+
+    for (int axis=0;axis<3;axis++) {
+        if (accLpfCutHz > 0) {
+            accFilter[axis].init(LPF_PT1, accLpfCutHz, driver->gyroSampleRate, 0);
+        }
+        if (gyroLpfCutHz > 0) {
+            gyroFilter[axis].init(LPF_PT1, gyroLpfCutHz, driver->gyroSampleRate, 0);
+        }
+    }
+
+    #if defined (USE_FUSION_AHRS)    
     #define GYRO_RANGE  (gyroScaleDeg * 32768.0)
     
-    FusionAhrsInitialise(&ahrs);
+    FusionAhrsInitialise(&fusion_ahrs);
     // Set AHRS algorithm settings
     const FusionAhrsSettings settings = {
             .convention = FusionConventionNwu,
@@ -77,106 +136,64 @@ bool MPU_Base::initialize() {
             .magneticRejection = 10.0f,
             .recoveryTriggerPeriod = 2U * gyroSampleRate, /* 2 seconds */
     };
-    FusionAhrsSetSettings(&ahrs, &settings);
-#else
-   
+    FusionAhrsSetSettings(&fusion_ahrs, &settings);
 #endif
 
-
-    return false;
+ initialized = true;
 }
 
-bool MPU_Base::readRegister(uint8_t reg, uint8_t *data, size_t size)
-{
-    size_t r = 0;
-    Wire.beginTransmission(m_address);
-    Wire.write(reg);
-    if (Wire.endTransmission() == 0)
-    {
-        Wire.requestFrom(m_address, size);
-        r = Wire.readBytes(data, size);
-    }
-    return r == size;
-}
-
-void MPU_Base::writeRegister(uint8_t reg, uint8_t value)
-{
-    uint8_t data = value;
-    Wire.beginTransmission(m_address);
-    Wire.write(reg);
-    Wire.write(&data, 1);
-    Wire.endTransmission();
-    //return (Wire.endTransmission() == 0);
-}
-
-void MPU_Base::writeRegisterBits(uint8_t registerID, uint8_t mask, uint8_t value)
-{
-    uint8_t newValue;
-
-    if (readRegister(registerID, &newValue, 1)) {
-        delayMicroseconds(2);
-        newValue = (newValue & ~mask) | value;
-        writeRegister(registerID, newValue);
-    }
-}
-
-void MPU_Base::start() {
-    read_errors = 0; // Reset Errors
-}
-
-uint8_t MPU_Base::event() {
+uint8_t AHRS::event() {
     return DURATION_IGNORE;
 }
 
-bool MPU_Base::isRunning() {
-    return !orientationIsWrong;
+bool AHRS::isRunning() {
+    return  initialized && !orientationIsWrong && !isCalibrating;
 }
 
 /**
  * This method is used instead of mpu->dmpGetYawPitchRoll() as that method has
  * issues when gravity switches at high pitch angles.
 */
-void MPU_Base::GetYawPitchRoll(float *data, Quaternion *q, VectorFloat *gravity)
+static void GetRollPitchYaw(float *data_rpy, Quaternion *q, VectorFloat *gravity)
 {
     /* using Gravity Vector */
     
     // yaw: (about Z axis)
-    data[0] = atan2(2 * q->x * q->y - 2 * q->w * q->z, 2 * q->w * q->w + 2 * q->x * q->x - 1);    
+    data_rpy[2] = atan2(2 * q->x * q->y - 2 * q->w * q->z, 2 * q->w * q->w + 2 * q->x * q->x - 1);    
     // pitch: (nose up/down, about Y axis)
-    data[1] = atan2(gravity -> x , sqrt(gravity -> y*gravity -> y + gravity -> z*gravity -> z));
+    data_rpy[1] = atan2(gravity -> x , sqrt(gravity -> y*gravity -> y + gravity -> z*gravity -> z));
     // roll: (tilt left/right, about X axis)
-    data[2] = atan2(gravity -> y , gravity -> z);
+    data_rpy[0] = atan2(gravity -> y , gravity -> z);
     
 
     /* using Quartilion */
     /*
     // yaw: (about Z axis)
-    data[0] = -atan2((q->x * q->y + q->w * q->z), 0.5 - (q->y * q->y + q->z * q->z));
+    data_rpy[2] = -atan2((q->x * q->y + q->w * q->z), 0.5 - (q->y * q->y + q->z * q->z));
     // pitch: (nose up/down, about Y axis)
-    data[1] = -asin(2.0 * (q->w * q->y - q->x * q->z));
+    data_rpy[1] = -asin(2.0 * (q->w * q->y - q->x * q->z));
     // roll: (tilt left/right, about X axis)
-    data[2] = atan2((q->w * q->x + q->y * q->z), 0.5 - (q->x * q->x + q->y * q->y));
+    data_rpy[0] = atan2((q->w * q->x + q->y * q->z), 0.5 - (q->x * q->x + q->y * q->y));
     */
 
 
     // NOTE: This is buggy at high pitch angles when gravity flips
     // if (gravity -> z < 0) {
-    //     if(data[1] > 0) {
-    //         data[1] = PI - data[1];
+    //     if(data_rpy[1] > 0) {
+    //         data_rpy[1] = PI - data_rpy[1];
     //     } else {
-    //         data[1] = -PI - data[1];
+    //         data_rpy[1] = -PI - data_rpy[1];
     //     }
     // }
 }
 
-uint8_t MPU_Base::GetGravity(VectorFloat *v, Quaternion *q) {
+static void GetGravity(VectorFloat *v, Quaternion *q) {
     v -> x = 2 * (q -> x*q -> z - q -> w*q -> y);
     v -> y = 2 * (q -> w*q -> x + q -> y*q -> z);
     v -> z = q -> w*q -> w - q -> x*q -> x - q -> y*q -> y + q -> z*q -> z;
-    return 0;
 }
 
-void MPU_Base::applyOrientation(VectorInt16 *v)
+void AHRS::applyOrientation(VectorInt16 *v)
 {
     // take care of the orientation of the sensor in the model
     float t[3];
@@ -189,31 +206,78 @@ void MPU_Base::applyOrientation(VectorInt16 *v)
     v->z = t[orientationZ] * orientationSignZ;
 }
 
-static float totalAccG = 0;
-static boolean isAccelHeathty(VectorFloat acc, float *kp, float *ki)
+
+// Calculate the KpGain to use. 
+// When disarmed after initial boot, the scaling is set to 10.0 for the first 20 seconds to speed up initial convergence.
+// After disarming we want to quickly reestablish convergence to deal with the attitude estimation being incorrect due to a crash.
+//   - wait for a 250ms period of low gyro activity to ensure the craft is not moving
+//   - use a large dcmKpGain value for 500ms to allow the attitude estimate to quickly converge
+//   - reset the gain back to the standard setting
+static float imuCalcKpGain(bool useAcc, const VectorFloat gyro, bool *qReset)
 {
-    #define KP1_LOW_LIMIT 0.975
-    #define KP1_HIGH_LIMIT 1.025
-    #define KP1 2.0
-    #define KI1 0.0
+    static uint8_t state = 0;
+    static long gyroQuietPeriodTimeEnd_us = 0;
+    static long attitudeResetTimeEnd_us = 0;
 
-    #define KP2_LOW_LIMIT 0.950
-    #define KP2_HIGH_LIMIT 1.050
-    #define KP2 1.0
-    #define KI2 0.0
+    float ret = 1.0;
+    *qReset = false;
 
-    float tmp = sq(acc.x) + sq(acc.y) + sq(acc.z); // sq(acc1G_adc * accScaleG); // Add 1G, since calibrated Acc is relative to 0
+    long currentTimeUs = micros();
+    // If gyro activity exceeds the threshold then restart the quiet period.
+    // Also, if the attitude reset has been complete and there is subsequent gyro activity then
+    // start the reset cycle again. 
+    
+    if (   (fabsf(gyro.x) > ATTITUDE_RESET_GYRO_LIMIT)
+        || (fabsf(gyro.y) > ATTITUDE_RESET_GYRO_LIMIT)
+        || (fabsf(gyro.z) > ATTITUDE_RESET_GYRO_LIMIT)
+        || (!useAcc)) {
+
+        gyroQuietPeriodTimeEnd_us = currentTimeUs + ATTITUDE_RESET_QUIET_TIME * 1000;
+        state=1;
+    }
+    
+
+    if (state==1) { // In Quiet Period
+        if (currentTimeUs >= gyroQuietPeriodTimeEnd_us) {
+            // Start the high gain period to bring the estimation into convergence
+            attitudeResetTimeEnd_us = currentTimeUs + ATTITUDE_RESET_ACTIVE_TIME * 1000;
+            gyroQuietPeriodTimeEnd_us = 0;
+            state = 2;
+            //*qReset = true;
+        }
+    }
+
+    if (state==2) { // In Attitude Reset
+        if (currentTimeUs >= attitudeResetTimeEnd_us) {
+            gyroQuietPeriodTimeEnd_us = 0;
+            attitudeResetTimeEnd_us = 0;
+            state = 0;
+        } else {
+            // Still in Attitude Reset
+            ret = 10.0; // To converge faster
+        }
+    }
+    
+    return ret;
+}
+
+
+static float totalAccG = 0;
+static float kpFactor = 1.0;
+boolean AHRS::isAccelHeathty(VectorFloat acc, float *kp, float *ki)
+{
+    #define KP1_LOW_LIMIT  0.90 //0.975
+    #define KP1_HIGH_LIMIT 1.10 //1.025
+
+    float tmp = sq(acc.x) + sq(acc.y) + sq(acc.z); 
     float totalAcc = sqrtf(tmp);
 
     totalAccG = totalAcc;
 
-    if ((totalAcc > KP1_LOW_LIMIT ) and ( totalAcc < KP1_HIGH_LIMIT )) { //When total acceleration is within some limits (close 1g)
-        *kp = KP1;
-        *ki = KI1;
-    } else if (( totalAcc > KP2_LOW_LIMIT ) and ( totalAcc < KP2_HIGH_LIMIT )) { //When total acceleration is within some limits (close 1g)
-        *kp = KP2;
-        *ki = KI2;
-    } else {
+    if ((totalAcc > KP1_LOW_LIMIT ) && ( totalAcc < KP1_HIGH_LIMIT )) { // When total acceleration is within some limits (close 1g)
+        *kp = AHRS_KP;
+        *ki = AHRS_KI;
+    } else { // Aceleration out of range
         *kp = 0;
         *ki = 0;
         return false;
@@ -222,27 +286,40 @@ static boolean isAccelHeathty(VectorFloat acc, float *kp, float *ki)
     return true;
 }
 
-bool MPU_Base::read(float accel_rpy[], float angle_rpy[]) {
+bool AHRS::readAndUpdate() {
     if (orientationIsWrong) return false;
 
     // Regular READ
-    if (!rawRead(&v_accel.x, &v_accel.y, &v_accel.z, 
+    if (!driver->rawRead(&v_accel.x, &v_accel.y, &v_accel.z, 
             &v_gyro.x,  &v_gyro.y,  &v_gyro.z)) {
         read_errors++;
         return false;
     }
 
     // Apply Calibration offsets
-    v_accel.x -= cal_accel_offets.x;
-    v_accel.y -= cal_accel_offets.y;
-    v_accel.z -= cal_accel_offets.z;
+    v_accel.x -= calAccelOffets.x;
+    v_accel.y -= calAccelOffets.y;
+    v_accel.z -= calAccelOffets.z;
     
-    v_gyro.x -= cal_gyro_offsets.x;
-    v_gyro.y -= cal_gyro_offsets.y;
-    v_gyro.z -= cal_gyro_offsets.z;
+    v_gyro.x -= calGyroOffsets.x;
+    v_gyro.y -= calGyroOffsets.y;
+    v_gyro.z -= calGyroOffsets.z;
 
     applyOrientation(&v_accel);
     applyOrientation(&v_gyro);
+
+    if (accLpfCutHz > 0) {
+        v_accel.x = accFilter[GYRO_AXIS_ROLL].apply(v_accel.x);
+        v_accel.y = accFilter[GYRO_AXIS_PITCH].apply(v_accel.y);
+        v_accel.z = accFilter[GYRO_AXIS_YAW].apply(v_accel.z);
+    }
+
+    if (gyroLpfCutHz > 0) {
+        v_gyro.x = gyroFilter[GYRO_AXIS_ROLL].apply(v_gyro.x);
+        v_gyro.y = gyroFilter[GYRO_AXIS_PITCH].apply(v_gyro.y);
+        v_gyro.z = gyroFilter[GYRO_AXIS_YAW].apply(v_gyro.z);
+    }
+
     
     // use Mahoney filter
     static long last = micros(); // Behaves like Global
@@ -252,17 +329,19 @@ bool MPU_Base::read(float accel_rpy[], float angle_rpy[]) {
     
     // Get Gyro in Degrees/sec
     VectorFloat gDeg;
-    gDeg.x = ((float) v_gyro.x) * gyroScaleDeg;
-    gDeg.y = ((float) v_gyro.y) * gyroScaleDeg;
-    gDeg.z = ((float) v_gyro.z) * gyroScaleDeg;
+    float scaleDeg = driver->gyroScaleDeg;
+    gDeg.x = ((float) v_gyro.x) * scaleDeg;
+    gDeg.y = ((float) v_gyro.y) * scaleDeg;
+    gDeg.z = ((float) v_gyro.z) * scaleDeg;
 
     // Get Acc in Gs
     VectorFloat accG;
-    accG.x = ((float) v_accel.x) * accScaleG;
-    accG.y = ((float) v_accel.y) * accScaleG;
-    accG.z = ((float) v_accel.z) * accScaleG;
+    float scaleG = driver->accScaleG;
+    accG.x = ((float) v_accel.x) * scaleG;
+    accG.y = ((float) v_accel.y) * scaleG;
+    accG.z = ((float) v_accel.z) * scaleG;
 
-    gyroBiasUpdate(gDeg);
+    gyroBias.Update(gDeg);
 
     float kp, ki;
     bool useAcc =  isAccelHeathty(accG, &kp, &ki);
@@ -283,14 +362,19 @@ bool MPU_Base::read(float accel_rpy[], float angle_rpy[]) {
         g.axis.y = gDeg.y;
         g.axis.z = gDeg.z;
 
-        FusionAhrsUpdate(&ahrs, g, a, FUSION_VECTOR_ZERO, deltat);
-        FusionQuaternion qq = FusionAhrsGetQuaternion(&ahrs);
+        FusionAhrsUpdate(&fusion_ahrs, g, a, FUSION_VECTOR_ZERO, deltat);
+        FusionQuaternion qq = FusionAhrsGetQuaternion(&fusion_ahrs);
         FusionEuler euler = FusionQuaternionToEuler(qq);
 
-        // Accel in  rad/s
-        accel_rpy[0] = radians(g.axis.x);  // Roll
-        accel_rpy[1] = radians(g.axis.y);  // Pitch
-        accel_rpy[2] = radians(g.axis.z);  // Yaw
+        // Gyro in  rad/s
+        gyro_rpy[0] = radians(g.axis.x);  // Roll
+        gyro_rpy[1] = radians(g.axis.y);  // Pitch
+        gyro_rpy[2] = radians(g.axis.z);  // Yaw
+
+        // Acc in  Gs
+        acc_rpy[0] = accG.x; // Roll
+        acc_rpy[1] = accG.y; // Pitch
+        acc_rpy[2] = accG.z; // Yaw
 
         // In Rad
         angle_rpy[0] = radians(euler.angle.roll);   // Roll
@@ -304,53 +388,56 @@ bool MPU_Base::read(float accel_rpy[], float angle_rpy[]) {
         q.z = qq.element.z;
 
         GetGravity(&gravity, &q);
-
-        ypr[0] = angle_rpy[2];
-        ypr[1] = angle_rpy[1];
-        ypr[2] = angle_rpy[0];
     #else
+        bool qReset;
+        kpFactor = imuCalcKpGain(useAcc,gDeg, &qReset); 
+        kp = kp * kpFactor;
+
+        if (qReset) {
+            q.reset();
+        }
+        
         Mahony_update(useAcc, accG.x, accG.y, accG.z, 
                       radians(gDeg.x), radians(gDeg.y), radians(gDeg.z),
                       &q, deltat, kp, ki);
 
         GetGravity(&gravity, &q);
-        GetYawPitchRoll(ypr, &q, &gravity);
+        GetRollPitchYaw(angle_rpy, &q, &gravity);
 
-        // Accel in  rad/s
-        accel_rpy[0] = radians(gDeg.x); // Roll
-        accel_rpy[1] = radians(gDeg.y); // Pitch
-        accel_rpy[2] = radians(gDeg.z); // Yaw
+        // Gyro in  rad/s
+        gyro_rpy[0] = radians(gDeg.x); // Roll
+        gyro_rpy[1] = radians(gDeg.y); // Pitch
+        gyro_rpy[2] = radians(gDeg.z); // Yaw
 
-        // In Rad
-        angle_rpy[0] = ypr[2];  // Roll
-        angle_rpy[1] = ypr[1];  // Pitch
-        angle_rpy[2] = ypr[0];  // Yaw
+        // Acc in  Gs
+        acc_rpy[0] = accG.x; // Roll
+        acc_rpy[1] = accG.y; // Pitch
+        acc_rpy[2] = accG.z; // Yaw
     #endif
 
     #ifdef DEBUG_GYRO_STATS
-    print_gyro_stats(now);
+    printGyroStats(now);
     #endif
 
-    // unsigned long time_since_update = micros() - last_gyro_update;
-    last_gyro_update = last;
+    lastGyroUpdate_us = last;
     return true;
 }
 
 
-void MPU_Base::setupOrientation()
+void AHRS::setupOrientation()
 {
     uint8_t idx;
     orientationIsWrong = false;
-    mpuOrientationH = config.GetGyroOrientationH();
-    mpuOrientationV = config.GetGyroOrientationV();
+    imuOrientationH = config.GetGyroOrientationH();
+    imuOrientationV = config.GetGyroOrientationV();
 
-    if (mpuOrientationH>5 || mpuOrientationV>5 ) 
+    if (imuOrientationH>5 || imuOrientationV>5 ) 
     {
         orientationIsWrong = true;
         DBGLN("Orientation is WRONG");
         return;
     }
-    idx = mpuOrientationH *6 + mpuOrientationV;  // into a number in range 0/35
+    idx = imuOrientationH *6 + imuOrientationV;  // into a number in range 0/35
     if (orientationList[idx][3] == 0){   // check that combination H and V is valid
         orientationIsWrong = true;
         return;
@@ -362,16 +449,16 @@ void MPU_Base::setupOrientation()
     orientationSignY = orientationList[idx][4];
     orientationSignZ = orientationList[idx][5];
 
-    DBGLN("OrientationH: %s", mpuOrientationNames[mpuOrientationH]);
-    DBGLN("OrientationV: %s", mpuOrientationNames[mpuOrientationV]);
+    DBGLN("OrientationH: %s", mpuOrientationNames[imuOrientationH]);
+    DBGLN("OrientationV: %s", mpuOrientationNames[imuOrientationV]);
 }
 
-void MPU_Base::findGravity(int32_t ax, int32_t ay, int32_t az, uint8_t &idx ){
+void AHRS::findGravity(int32_t ax, int32_t ay, int32_t az, uint8_t &idx ){
     // find the index and sign of gravity 
     //      idx:  0=X, 1=Y, 2=Z; 
     //      sign: 1=gravity is the opposite (normally Z axis is up and give 1) 
     
-    float oneG_70percent = acc1G_adc*0.7;
+    float oneG_70percent = driver->acc1G_adc*0.7;
 
     if ((float) ax > oneG_70percent) { idx = 0 ;
     } else if ((float) ax < -oneG_70percent) { idx = 1 ;
@@ -381,17 +468,17 @@ void MPU_Base::findGravity(int32_t ax, int32_t ay, int32_t az, uint8_t &idx ){
     } else if ((float) az < -oneG_70percent) { idx = 5 ;
     } else { idx= 6; };
     
-    DBGLN("findGravty(): ax=%d  ay=%d  az=%d  yawIdx=%d  scale=%f", ax , ay ,  az, idx, acc1G_adc);
+    DBGLN("findGravty(): ax=%d  ay=%d  az=%d  yawIdx=%d  scale=%f", ax , ay ,  az, idx, driver->acc1G_adc);
 }    
 
-uint8_t MPU_Base::readAndGetGravity(){ // return index of orientation; return 6 in case of error
+uint8_t AHRS::readAndGetGravity(){ // return index of orientation; return 6 in case of error
     int16_t ax,ay,az ;
     int16_t gx,gy,gz ;
     uint8_t idx = 6; 
     
     uint8_t i = 3;
     do {
-        if (rawRead(&ax, &ay, &az, &gx, &gy, &gz)) {
+        if (driver->rawRead(&ax, &ay, &az, &gx, &gy, &gz)) {
             findGravity( ax , ay , az , idx);
             break;
         }
@@ -400,11 +487,11 @@ uint8_t MPU_Base::readAndGetGravity(){ // return index of orientation; return 6 
 	return idx;
 }
 
-void MPU_Base::OrientationHorizontalExecute()  // 
+void AHRS::OrientationHorizontalExecute()  // 
 {
     orientationIsWrong = true;
-    mpuOrientationH = 6;
-    mpuOrientationV = 6;
+    imuOrientationH = 6;
+    imuOrientationV = 6;
 
     DBGLN("Horizontal Detection...");
     uint8_t idx = readAndGetGravity(); // // read the Acc and detect which face is on the upper side 
@@ -413,28 +500,28 @@ void MPU_Base::OrientationHorizontalExecute()  //
          return;
     }
     DBGLN("Upper face of MPU (when model is horizontal) is %s", mpuOrientationNames[idx]);
-    mpuOrientationH =  idx ; // save the orientationH 
+    imuOrientationH =  idx ; // save the orientationH 
     
     // Run the calibration, but not saving the offsets
-    CalibrateAccel(8, &cal_accel_offets);
-    CalibrateGyro(8, &cal_gyro_offsets);
+    calibrateAccel(8, &calAccelOffets);
+    calibrateGyro(8, &calGyroOffsets);
 }
 
-void MPU_Base::OrientationVerticalExecute() {
-    mpuOrientationV = 6;
+void AHRS::OrientationVerticalExecute() {
+    imuOrientationV = 6;
     DBGLN("Vertical Detection...");
     uint8_t idx = readAndGetGravity(); // // read the Acc and detect which face is on the upper side 
     if (idx > 5){
         DBGLN("Error during vertical orientation: direction of gravity has not been found");
     }
     DBGLN("Upper face (with nose up) is %s",mpuOrientationNames[idx]);
-    mpuOrientationV =  idx ; // save the orientationV
+    imuOrientationV =  idx ; // save the orientationV
 
-    config.SetGyroOrientation(mpuOrientationH,mpuOrientationV);  
+    config.SetGyroOrientation(imuOrientationH,imuOrientationV);  
 
     // Save the Calibration
-    config.SetAccelCalibration(cal_accel_offets.x, cal_accel_offets.y, cal_accel_offets.z);
-    config.SetGyroCalibration(cal_gyro_offsets.x, cal_gyro_offsets.y, cal_gyro_offsets.z);
+    config.SetAccelCalibration(calAccelOffets.x, calAccelOffets.y, calAccelOffets.z);
+    config.SetGyroCalibration(calGyroOffsets.x, calGyroOffsets.y, calGyroOffsets.z);
 
     // Restart with the saved config Offsets
     start();
@@ -455,7 +542,7 @@ void MPU_Base::OrientationVerticalExecute() {
 
 
 // currently ax, ay, az are in Gs and gx,gy,gz are in rad/sec.
-void MPU_Base::Mahony_update(bool useAcc, 
+void AHRS::Mahony_update(bool useAcc, 
                              float ax, float ay, float az, 
                              float gx, float gy, float gz, 
                              Quaternion *q,
@@ -466,10 +553,10 @@ void MPU_Base::Mahony_update(bool useAcc,
     float ex=0.0f, ey=0.0f, ez=0.0f;  //error terms
     
     // Compute feedback only if accelerometer measurement valid (avoids NaN in accelerometer normalisation)
-    float tmp = sq(ax) + sq(ay) + sq(az);
-    if (useAcc && tmp > 0.01f) {  // Original tmp > 0.0, Rotorflight have it as > 0.01f
+    float tmpAcc = sq(ax) + sq(ay) + sq(az);
+    if (useAcc && tmpAcc > 0.01f) {  // Original tmpAcc > 0.0, Rotorflight have it as > 0.01f
         // Normalise accelerometer (assumed to measure the direction of gravity in body frame)
-        float recipNorm = invSqrt(tmp);
+        float recipNorm = invSqrt(tmpAcc);
         ax *= recipNorm;
         ay *= recipNorm;
         az *= recipNorm;
@@ -522,10 +609,10 @@ void MPU_Base::Mahony_update(bool useAcc,
     q->z += (+tq_w * gz + tq_x * gy - tq_y * gx);
 
     // renormalise quaternion
-    tmp = sq(q->w) + sq(q->x) + sq(q->y) + sq(q->z);
-    if ( tmp == 0 ) return;  // Prevent NaN
+    tmpAcc = sq(q->w) + sq(q->x) + sq(q->y) + sq(q->z);
+    if ( tmpAcc == 0 ) return;  // Prevent NaN
 
-    float recipNorm = invSqrt(tmp);
+    float recipNorm = invSqrt(tmpAcc);
     q->w = q->w * recipNorm;
     q->x = q->x * recipNorm;
     q->y = q->y * recipNorm;
@@ -533,73 +620,7 @@ void MPU_Base::Mahony_update(bool useAcc,
 #endif 
 }
 
-bool MPU_Base::AutoCalibrateGyro(int32_t gx, int32_t gy, int32_t gz) 
-{
-    #define NUMBER_ITER_CALIB 1000
-    static int countSkip = 0;
-    static int count = 0;
-    static int32_t gxAccum = 0, gyAccum = 0, gzAccum = 0; 
-    static int32_t gxMin = 60000 , gxMax = -60000 , gyMin = 60000 , gyMax = -60000 , gzMin = 60000 , gzMax = -60000;
-
-    if (countSkip < NUMBER_ITER_CALIB) { // About 1s delay
-        countSkip++;
-        return false;
-    }
-
-    if (count < NUMBER_ITER_CALIB)
-    {
-        count++;
-        
-        gxAccum += (int32_t) gx;
-        gyAccum += (int32_t) gy;
-        gzAccum += (int32_t) gz;
-
-        if (gx < gxMin) gxMin = gx;
-        if (gy < gyMin) gyMin = gy;
-        if (gz < gzMin) gzMin = gz;
-        if (gx > gxMax) gxMax = gx;
-        if (gy > gyMax) gyMax = gy;
-        if (gz > gzMax) gzMax = gz;
-    } else {
-        //imgGyroCalNeeded = false; // avoid calibration (it is done)
-        DBGLN ("Auto Gyro Calibration: gyro differences: x=%d (%d/%d) y=%d (%d/%d) z=%d (%d/%d)", 
-                 gxMax - gxMin, gxMax, gxMin,
-                 gxMax - gxMin, gxMax, gxMin,
-                 gzMax - gzMin, gzMax, gzMin);
-
-        if ( ((gxMax-gxMin) > MAX_GYRO_DIFF) or ((gyMax-gyMin) > MAX_GYRO_DIFF) or ((gzMax-gzMin) > MAX_GYRO_DIFF) ){
-            DBGLN("Auto Gyro calibration failed; will uses gyro offsets saved during horizontal calibration");
-            DBGLN("Auto Gyro: Using Offset x=%d  y=%d   z=%d\n",  cal_gyro_offsets.x ,cal_gyro_offsets.y,cal_gyro_offsets.z);
-        } else {
-            int32_t new_x = gxAccum / NUMBER_ITER_CALIB;
-            int32_t new_y = gyAccum / NUMBER_ITER_CALIB;
-            int32_t new_z = gzAccum / NUMBER_ITER_CALIB;
-
-            if (cal_gyro_offsets.x != new_x || cal_gyro_offsets.y != new_y || cal_gyro_offsets.z != new_z) {
-                DBGLN("Auto Gyro: Succeded, changes detected");
-                    
-                DBGLN("Auto Gyro: Old Offset x=%d  y=%d   z=%d",  cal_gyro_offsets.x ,cal_gyro_offsets.y,cal_gyro_offsets.z);
-                cal_gyro_offsets.x = new_x;
-                cal_gyro_offsets.y = new_y;
-                cal_gyro_offsets.z = new_z;
-                DBGLN("Auto Gyro: New Offset x=%d  y=%d   z=%d",  cal_gyro_offsets.x ,cal_gyro_offsets.y,cal_gyro_offsets.z);
-
-                //config.SetGyroCalibration(
-                //    cal_gyro_offsets.x,
-                //    cal_gyro_offsets.y,
-                //    cal_gyro_offsets.z
-                //);
-                //config.Commit();
-            } else {
-                DBGLN("Auto Gyro: Succeded, no change in calibration");
-            }
-            
-        }
-    }    
-    return true;
-}
-
-bool MPU_Base::CalibrateGyro(int8_t loops, rx_config_gyro_calibration_t *offsets)
+bool AHRS::calibrateGyro(int8_t loops, rx_config_gyro_calibration_t *offsets)
 {
    #define ACCEL_NUM_AVG_SAMPLES	300
 
@@ -614,13 +635,13 @@ bool MPU_Base::CalibrateGyro(int8_t loops, rx_config_gyro_calibration_t *offsets
     int16_t errors = 0;
 
     DBGLN ("Stating Gyro Calibration..");
-    calibrating = true;
+    isCalibrating = true;
 
 	for (int inx = 0; inx < ACCEL_NUM_AVG_SAMPLES; inx++){
         DBG(".");
         int c=0;
-        while (!isDataReady() && c++ < 20) { delayMicroseconds(50); }
-        if (!rawRead(&ax,&ay,&az,&gx,&gy,&gz)) {
+        while (!driver->isDataReady() && c++ < 20) { delayMicroseconds(50); }
+        if (!driver->rawRead(&ax,&ay,&az,&gx,&gy,&gz)) {
             errors++;
             continue;
         }
@@ -647,13 +668,13 @@ bool MPU_Base::CalibrateGyro(int8_t loops, rx_config_gyro_calibration_t *offsets
     
     if (((gxMax - gxMin) > MAX_GYRO_DIFF) or ((gyMax - gyMin) > MAX_GYRO_DIFF) or ((gzMax - gzMin) > MAX_GYRO_DIFF)) {
         DBGLN ("Error in IMU calibration: to much variations in the gyro values");
-        calibrating = false;
+        isCalibrating = false;
         return false;
     }
 
     if (errors > 50) {
         DBGLN("Too many read errors during calibration  (Errors=%d)",errors);
-        calibrating = false;
+        isCalibrating = false;
         return false;
     }
 
@@ -666,11 +687,11 @@ bool MPU_Base::CalibrateGyro(int8_t loops, rx_config_gyro_calibration_t *offsets
 	offsets->z = (int16_t)(gzAccum);
  
     DBGLN("Gyr Offs:  x=%d,y=%d,z=%d",offsets->x, offsets->y,offsets->z);
-    calibrating = false;
+    isCalibrating = false;
     return true;
 }
 
-bool MPU_Base::CalibrateAccel(int8_t loops, rx_config_gyro_calibration_t *offsets)
+bool AHRS::calibrateAccel(int8_t loops, rx_config_gyro_calibration_t *offsets)
 {
     int16_t ax,ay,az ;
     int16_t gx,gy,gz ;
@@ -681,27 +702,28 @@ bool MPU_Base::CalibrateAccel(int8_t loops, rx_config_gyro_calibration_t *offset
     axMin = ayMin = azMin  = 60000;
     axMax = ayMax = azMax  = -60000;  
     
-    DBGLN ("Stating Accelerometer Calibration. OrientationH:%s",mpuOrientationNames[mpuOrientationH]);
-    calibrating = true;
+    DBGLN ("Stating Accelerometer Calibration. OrientationH: %s",mpuOrientationNames[imuOrientationH]);
+    isCalibrating = true;
 
     for (int inx = 0; inx < ACCEL_NUM_AVG_SAMPLES; inx++){
         DBG(".");      
         int c=0;
-        while (!isDataReady() && c++ < 20) { delayMicroseconds(50); }
-        if (!rawRead(&ax,&ay,&az,&gx,&gy,&gz)) {
+        while (!driver->isDataReady() && c++ < 20) { delayMicroseconds(50); }
+        if (!driver->rawRead(&ax,&ay,&az,&gx,&gy,&gz)) {
             errors++;
             continue;
         }
         
 
         // Remove Gravity
-        switch (mpuOrientationH) {
-            case 0:  ax -= acc1G_adc; break;
-            case 1:  ax += acc1G_adc; break;
-            case 2:  ay -= acc1G_adc; break;
-            case 3:  ay += acc1G_adc; break;
-            case 4:  az -= acc1G_adc; break;
-            case 5:  az += acc1G_adc; break;
+        float acc1G = driver->acc1G_adc;
+        switch (imuOrientationH) {
+            case 0:  ax -= acc1G; break;
+            case 1:  ax += acc1G; break;
+            case 2:  ay -= acc1G; break;
+            case 3:  ay += acc1G; break;
+            case 4:  az -= acc1G; break;
+            case 5:  az += acc1G; break;
         }
        
         axAccum += (int32_t) ax;
@@ -728,13 +750,13 @@ bool MPU_Base::CalibrateAccel(int8_t loops, rx_config_gyro_calibration_t *offset
     
     if (((axMax - axMin) > MAX_ACC_DIFF) or ((ayMax - ayMin) > MAX_ACC_DIFF) or ((azMax - azMin) > MAX_ACC_DIFF)) {
         DBGLN ("Error in IMU calibration: to much variations in the acceleration values: x=%d y=%d z=%d", axMax - axMin, ayMax - ayMin , azMax - azMin);
-        calibrating = false;
+        isCalibrating = false;
         return false;
     }
 
     if (errors > 50) {
         DBGLN("Too many read errors during calibration  (Errors=%d)",errors);
-        calibrating = false;
+        isCalibrating = false;
         return false;
     }
 
@@ -748,36 +770,66 @@ bool MPU_Base::CalibrateAccel(int8_t loops, rx_config_gyro_calibration_t *offset
 	offsets->z = (int16_t)(azAccum);
 
     DBGLN("Acc Offs:  x=%d,y=%d,z=%d",offsets->x, offsets->y,offsets->z);
-    calibrating = false;
+    isCalibrating = false;
     return true;
 }
 
-void MPU_Base::calibrate(bool save)
+void AHRS::calibrate(bool save)
 {
     // Run the calibration
-    CalibrateAccel(8, &cal_accel_offets);
-    CalibrateGyro(8, &cal_gyro_offsets);
+    calibrateAccel(8, &calAccelOffets);
+    calibrateGyro(8, &calGyroOffsets);
 
     if (!save) return;
 
     config.SetAccelCalibration(
-        cal_accel_offets.x,
-        cal_accel_offets.y,
-        cal_accel_offets.z
+        calAccelOffets.x,
+        calAccelOffets.y,
+        calAccelOffets.z
     );
     config.SetGyroCalibration(
-        cal_gyro_offsets.x,
-        cal_gyro_offsets.y,
-        cal_gyro_offsets.z
+        calGyroOffsets.x,
+        calGyroOffsets.y,
+        calGyroOffsets.z
     );
 }
 
+int AHRS::tick()
+{
+    // Behaves like Global
+    static unsigned long next_check_us = micros();
+    
+    if (!initialized && isCalibrating) { 
+        //DBGLN("Gyro not Ready or Calibrating.. return in 1s");
+        return 1000; // come back in 1000 ms if not initialized
+    }
+
+    // Returned earlier than the ODR Period?? 
+    long now = micros();
+    if (now < next_check_us) {  
+         return DURATION_IMMEDIATELY;
+    }
+    
+    // Do we have Gyro data Available ??
+    if (!driver->isDataReady()) {
+        return DURATION_IMMEDIATELY;
+    }
+
+    // Update next_check_us. We use the theoretical GyroSampleRate to see how 
+    // many uS do we have to wait to try to read again the gyro
+    next_check_us = now + driver->period_us;
+
+    readAndUpdate();
+
+    // Loop again as fast as we can, the refresh rate of the gyro ODR
+    return DURATION_IMMEDIATELY;
+}
 
 #ifdef DEBUG_GYRO_STATS
 /**
  * For debugging print useful gyro state
  */
-void MPU_Base::print_gyro_stats(long nowMicros)
+void AHRS::printGyroStats(long nowMicros)
 {
     static long last_gyro_stats_time = 0;
     static int update_rate = 0;
@@ -786,29 +838,29 @@ void MPU_Base::print_gyro_stats(long nowMicros)
         return;
 
     // Calculate gyro update rate in HZ
-    int current_rate = 1.0 / ((nowMicros - last_gyro_update) / 1000000.0);
+    int current_rate = 1.0 / ((nowMicros - lastGyroUpdate_us) / 1000000.0);
     update_rate = (update_rate + current_rate) / 2;  // Average
 
     char rate_str[15]; sprintf(rate_str, "%4d", update_rate);
 
-    char pitch_str[15]; sprintf(pitch_str, "%6.2f", degrees(ypr[1]));
-    char roll_str[15]; sprintf(roll_str, "%6.2f", degrees(ypr[2]));
-    char yaw_str[15]; sprintf(yaw_str, "%6.2f", degrees(ypr[0]));
+    char pitch_str[15]; sprintf(pitch_str, "%6.2f", degrees(angle_rpy[1]));
+    char roll_str[15]; sprintf(roll_str, "%6.2f", degrees(angle_rpy[0]));
+    char yaw_str[15]; sprintf(yaw_str, "%6.2f", degrees(angle_rpy[2]));
 
-    char gyro_x[15]; sprintf(gyro_x, "%6.3f", (double) v_gyro.x * gyroScaleDeg);
-    char gyro_y[15]; sprintf(gyro_y, "%6.3f", (double) v_gyro.y * gyroScaleDeg);
-    char gyro_z[15]; sprintf(gyro_z, "%6.3f", (double) v_gyro.z * gyroScaleDeg);
+    char gyro_x[15]; sprintf(gyro_x, "%6.3f", (double) v_gyro.x * driver->gyroScaleDeg);
+    char gyro_y[15]; sprintf(gyro_y, "%6.3f", (double) v_gyro.y * driver->gyroScaleDeg);
+    char gyro_z[15]; sprintf(gyro_z, "%6.3f", (double) v_gyro.z * driver->gyroScaleDeg);
 
-    char accel_x[15]; sprintf(accel_x, "%6.3f", (double) v_accel.x * accScaleG);
-    char accel_y[15]; sprintf(accel_y, "%6.3f", (double) v_accel.y * accScaleG);
-    char accel_z[15]; sprintf(accel_z, "%6.3f", (double) v_accel.z * accScaleG);
+    char accel_x[15]; sprintf(accel_x, "%6.3f", (double) v_accel.x * driver->accScaleG);
+    char accel_y[15]; sprintf(accel_y, "%6.3f", (double) v_accel.y * driver->accScaleG);
+    char accel_z[15]; sprintf(accel_z, "%6.3f", (double) v_accel.z * driver->accScaleG);
 
     char gravity_x[15]; sprintf(gravity_x, "%4.3f", gravity.x);
     char gravity_y[15]; sprintf(gravity_y, "%4.3f", gravity.y);
     char gravity_z[15]; sprintf(gravity_z, "%4.3f", gravity.z);
 
 
-    VectorFloat  o = getBiasOffsets();
+    VectorFloat  o = gyroBias.getOffsets();
     char bias_x[15]; sprintf(bias_x, "%4.3f", o.x);
     char bias_y[15]; sprintf(bias_y, "%4.3f", o.y);
     char bias_z[15]; sprintf(bias_z, "%4.3f", o.z);
@@ -821,12 +873,11 @@ void MPU_Base::print_gyro_stats(long nowMicros)
     DBGLN("GBias   (x: %s, y: %s, z: %s)",bias_x, bias_y, bias_z);
     DBGLN("Accel   (x: %s, y: %s, z: %s)",accel_x, accel_y, accel_z);
     DBGLN("Gravity (x: %s, y: %s, z: %s)",gravity_x, gravity_y, gravity_z);
-    DBGLN("TotalAccHeath (%f)",totalAccG);
+    DBGLN("TotalAccHeath (%f)   Kp=(%f) Ki=(%f) ",totalAccG, AHRS_KP * kpFactor, AHRS_KI);
 
     last_gyro_stats_time = millis();
 }
 #endif
 
-uint8_t MPU_Base::m_address = 0;
 
 #endif

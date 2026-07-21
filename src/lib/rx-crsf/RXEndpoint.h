@@ -15,7 +15,7 @@ private:
     void luaparamMappingChannelOut(propertiesCommon *item, uint8_t arg);
     void luaparamSetFailsafe(propertiesCommon *item, uint8_t arg);
 
-#if defined(HAS_GYRO)
+#if defined(GYRO_SUPPORT)
     // Commands
     void luaparamGyroQuickPreset(propertiesCommon *item, uint8_t arg);
     void luaparamGyroCalibration(propertiesCommon *item, uint8_t arg);

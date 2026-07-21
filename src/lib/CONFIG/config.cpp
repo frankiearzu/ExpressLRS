@@ -823,8 +823,8 @@ void RxConfig::Load()
     {
         CheckUpdateFlashedUid(false);
 
-        #if defined(HAS_GYRO)
-        if (OPT_HAS_GYRO_HW)
+        #if defined(GYRO_SUPPORT)
+        if (OPT_HAS_GYRO)
         {
             GyroCheckUpgrade();
         }
@@ -1270,8 +1270,8 @@ RxConfig::SetDefaults(bool commit)
 
     m_config.teamraceChannel = AUX7; // CH11
 
-#if defined(HAS_GYRO)
-    if (OPT_HAS_GYRO_HW)
+#if defined(GYRO_SUPPORT)
+    if (OPT_HAS_GYRO)
     {
         SetGyroDefaults(false);
     }
@@ -1295,7 +1295,7 @@ RxConfig::SetStorageProvider(ELRS_EEPROM *eeprom)
     }
 }
 
-#if defined(HAS_GYRO)
+#if defined(GYRO_SUPPORT)
 
 void RxConfig::SetGyroDefaults(bool commit) 
 {
@@ -1323,6 +1323,7 @@ void RxConfig::GyroCheckUpgrade()
 
     // If we are in the same version, all good
     if (version == GYRO_CONFIG_VERSION) {
+        gyroUpgrade(version); // Do upgrades on Same Version
         return;
     }
 
@@ -1331,11 +1332,9 @@ void RxConfig::GyroCheckUpgrade()
     if (version < 2 || version > GYRO_CONFIG_VERSION)
     {
         SetGyroDefaults(false);
-    } else  // After here will for valid gyro updates
-    if (version == 2) {
-      gyroUpgrade2_to_3();
-    }
-
+    } 
+    // After here will for valid gyro updates
+    gyroUpgrade(version);
     SetGyroConfigVersion(GYRO_CONFIG_VERSION);
     Commit();
 }
@@ -1576,7 +1575,7 @@ RxConfig::SetPwmChannelRaw(uint8_t ch, uint32_t raw)
     m_modified = EVENT_CONFIG_PWM_CHANGE;
 }
 
-#if defined(HAS_GYRO)
+#if defined(GYRO_SUPPORT)
 void
 RxConfig::SetPwmChannelLimits(uint8_t ch, uint16_t min, uint16_t max, uint16_t mid)
 {

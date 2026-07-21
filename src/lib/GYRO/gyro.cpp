@@ -1,18 +1,18 @@
 #include "targets.h"
 
-#if defined(HAS_GYRO)
+#if defined(GYRO_SUPPORT)
 #include "config.h"
 #include "gyro.h"
 #include "gyro_types.h"
-#include "mixer.h"
-//#include "device.h"
-#include "mpu/mpu.h"
+#include "utils.h"
+
+#include "ahrs/ahrs.h"
 #include "modes/mode_envelope.h"
 #include "modes/mode_auto_level.h"
 #include "modes/mode_hover.h"
 #include "modes/mode_rate.h"
-#include "CRSFRouter.h"
 #include "logging.h"
+#include "crsf_protocol.h"
 
 
 // Comment to Remove Debug of State
@@ -37,9 +37,9 @@ static rx_config_pwm_limits_t temp_limits[PWM_MAX_CHANNELS] = {};
 // Must match mixer.h: gyro_output_channel_function_t
 //static const char* STR_gyroOutputChannelMode[] = {"None","Aileron","Elevator","Rudder","Elevon","V Tail"};
 // Must match gyro.h gyro_mode_t
-static const char* STR_gyroMode[] = {"Off","Rate","Envelope","Auto-Level","Launch","Hover"};
+const char* STR_gyroMode[] = {"Off","Rate","Envelope","Auto-Level","Launch","Hover"};
 // Must match gyro_axis_t
-static const char* STR_gyroAxis[] = {"Roll","Pitch","Yaw"}; 
+//static const char* STR_gyroAxis[] = {"Roll","Pitch","Yaw"}; 
 
 //volatile gyro_event_t gyro_event = GYRO_EVENT_NONE;
 
@@ -106,12 +106,12 @@ static float channel_command(uint8_t ch)
     return us_command_to_float(ch, us);
 }
 
-void Gyro::init(MPU_Base *mpu)
+void Gyro::init(AHRS *ahrs)
 {
     DBGLN("Gyro:Init()");
     
+    this->ahrs      = ahrs;
     initialized     = false;
-    mpuDev          = mpu;
     mode_controller = nullptr;
     gyro_mode       = GYRO_MODE_OFF;
     learn_state     = GYRO_LEARN_OFF;
@@ -128,13 +128,13 @@ void Gyro::start()
 {
     DBGLN("Gyro:Start()");
     initialized = false;
+    ahrs->start();
     if (!config.GetGyroEnabled()) return; //not enabled
-    if (mpuDev== nullptr) return; // No Gyro Detected
+    if (ahrs->getImuDriver()== nullptr) return; // No Gyro Detected
     
     gyro_mode = GYRO_MODE_OFF;
     learn_state = GYRO_LEARN_OFF;
-    mpuDev->start();
-    initialized = mpuDev->isRunning() && !isStickCalibrationNeeded();
+    initialized = ahrs->isRunning() && !isStickCalibrationNeeded();
 
     gain_factor = 1.0;
     gyro_gain_factor_t gainFactorEnum = config.GetGyroGainFactor();
@@ -177,16 +177,11 @@ void Gyro::start()
     DBGLN("Gyro:Start() END");
 }
 
-const char * Gyro::getMPUName() {
-    if (mpuDev == nullptr) return "--";
-    return mpuDev->GetMPUName();
-}
-
 gyro_status_t Gyro::getStatus() 
 {
     if (!config.GetGyroEnabled()) return GYRO_STATUS_OFF;
-    if (mpuDev== nullptr) return GYRO_STATUS_NOT_DETECTED;
-    if (!mpuDev->isRunning()) return GYRO_STATUS_NEED_RX_ORIENTATION; 
+    if (ahrs->getImuDriver() == nullptr) return GYRO_STATUS_NOT_DETECTED;
+    if (!ahrs->isRunning()) return GYRO_STATUS_NEED_RX_ORIENTATION; 
     if (isStickCalibrationNeeded()) return GYRO_STATUS_NEED_STICK_CAL;
     return GYRO_STATUS_OK;
 }
@@ -196,8 +191,8 @@ void Gyro::calibrate()
     initialized = false;
     first_start = true;
     // Level Calibration
-    mpuDev->calibrate(true);
-    initialized = mpuDev->isRunning();
+    ahrs->calibrate(true);
+    initialized = ahrs->isRunning();
 }
 
 void Gyro::detect_mode(uint16_t us)
@@ -221,21 +216,21 @@ void Gyro::detect_mode(uint16_t us)
 }
 
 /**
+ * Trigger a ahrs to stop until restarted
+*/
+void Gyro::pause() {
+    initialized = false;
+    ahrs->pause();
+}
+
+/**
  * Trigger a gyro re-initialization of the current gyro mode
 */
 void Gyro::reload()
 {
+    pause();
     start();
 }
-
-/**
- * Trigger a gyro to stop until restarted
-*/
-void Gyro::pause()
-{
-    initialized = false;
-}
-
 
 void Gyro::switch_mode(gyro_mode_t mode)
 {
@@ -261,7 +256,7 @@ void Gyro::detect_gain(uint16_t us)
 void Gyro::mixerInput()
 {
     // We get called before the gyro configuration is initialized
-    if (!initialized || learn_state != GYRO_LEARN_OFF || mpuDev->calibrating) return;
+    if (!initialized || learn_state != GYRO_LEARN_OFF || !ahrs->isRunning()) return;
 
 
     if ((micros() - pid_delay) < 1000 ) return; // ~1k PID loop
@@ -330,7 +325,7 @@ void Gyro::mixerInput()
 
     if (gain_ch >= 0)   detect_gain(channel_us(gain_ch)); else master_gain = 1.0;
 
-    mode_controller->calculate_pid(input_rpy, acc_rpy, angle_rpy);
+    mode_controller->calculate_pid(input_rpy, ahrs->gyro_rpy, ahrs->angle_rpy);
 
     #if defined(DEBUG_LOG) && defined(GYRO_PID_DEBUG_TIME)
     if (gyro.gyro_mode != GYRO_MODE_OFF &&
@@ -358,7 +353,7 @@ void Gyro::mixerOutput(uint8_t ch, uint16_t *us)
     }
 
     // We get called before the gyro configuration is initialized
-    if (!initialized || mpuDev->calibrating) return;
+    if (!initialized || !ahrs->isRunning()) return;
    
     if (output_mode == FN_NONE)
         return;
@@ -381,89 +376,9 @@ void Gyro::mixerOutput(uint8_t ch, uint16_t *us)
     }
 }
 
-static int16_t decidegrees2Radians10000(int16_t angle_decidegree)
-{
-    while (angle_decidegree > 1800)
-    {
-        angle_decidegree -= 3600;
-    }
-    while (angle_decidegree < -1800)
-    {
-        angle_decidegree += 3600;
-    }
-    return (int16_t)((M_PI / 180.0f) * 1000.0f * angle_decidegree);
-}
-
-void Gyro::send_telemetry()
-{
-    // Get yaw/pitch/roll in decidegrees and convert to uint16_t
-    uint16_t rpy16[3] = {0};
-    rpy16[GYRO_AXIS_ROLL]   = (uint16_t)(gyro.angle_rpy[GYRO_AXIS_ROLL] * 1800 / M_PI);
-    rpy16[GYRO_AXIS_PITCH]  = (uint16_t)(gyro.angle_rpy[GYRO_AXIS_PITCH] * 1800 / M_PI);
-    rpy16[GYRO_AXIS_YAW]    = (uint16_t)(gyro.angle_rpy[GYRO_AXIS_YAW] * 1800 / M_PI);
-    
-    CRSF_MK_FRAME_T(crsf_sensor_attitude_t)
-    crsfAttitude = {0};
-    crsfAttitude.p.pitch = htobe16(decidegrees2Radians10000(rpy16[GYRO_AXIS_PITCH]));
-    crsfAttitude.p.roll = htobe16(decidegrees2Radians10000(rpy16[GYRO_AXIS_ROLL]));
-    crsfAttitude.p.yaw = htobe16(decidegrees2Radians10000(rpy16[GYRO_AXIS_YAW]));
-
-    crsfRouter.SetHeaderAndCrc((crsf_header_t *)&crsfAttitude, CRSF_FRAMETYPE_ATTITUDE, CRSF_FRAME_SIZE(sizeof(crsf_sensor_attitude_t)));
-    crsfRouter.deliverMessageTo(CRSF_ADDRESS_RADIO_TRANSMITTER, &crsfAttitude.h);
-
-    CRSF_MK_FRAME_T(crsf_flight_mode_t)
-    crsfFlightMode = {0};
-
-    strcpy(crsfFlightMode.p.flight_mode, STR_gyroMode[gyro.gyro_mode]);
-
-    crsfRouter.SetHeaderAndCrc((crsf_header_t *)&crsfFlightMode, CRSF_FRAMETYPE_FLIGHT_MODE, CRSF_FRAME_SIZE(sizeof(crsf_flight_mode_t)));
-    crsfRouter.deliverMessageTo(CRSF_ADDRESS_CRSF_TRANSMITTER, &crsfFlightMode.h);
-}
-
-unsigned long Gyro::getIMUReadErrors() {
-    return (mpuDev==nullptr)?0:mpuDev->read_errors;
-}
-
-int Gyro::tick()
-{
-    // Behaves like Global
-    static unsigned long last_tel = millis(); 
-    static unsigned long last_tick = micros();
-
-    if (!initialized ||
-        mpuDev->calibrating) { 
-        //DBGLN("Gyro not Ready or Calibrating.. return in 1s");
-        return 1000; // come back in 1000 ms if not initialized
-    }
-
-    // only try to check data ready every 50uS 
-    long now = micros();
-    if (now - last_tick < 50) {   
-         return DURATION_IMMEDIATELY;
-    }
-    last_tick = now;
-    
-    // Do we have Gyro data Available ??
-    if (!mpuDev->isDataReady()) return DURATION_IMMEDIATELY;
-
-    if (mpuDev->read(acc_rpy, angle_rpy)) {  
-        if ((millis() - last_tel) > 200 ) { // 200 ms (2s) cycle
-            last_tel = millis();
-            send_telemetry();
-        }
-    } else {
-        // Read Error, try again inmediatly
-        return DURATION_IMMEDIATELY;
-    }
-
-    // Loop again as fast as we can, the refresh rate of the gyro
-    // is driven by the hardware ouput-data-rate (ODR)
-    return DURATION_IMMEDIATELY;
-}
-
 uint8_t Gyro::event() 
 {
-    return mpuDev->event();
+    return DURATION_IGNORE;
 }
 
 void Gyro::learn_sticks(uint8_t ch, uint16_t us) {

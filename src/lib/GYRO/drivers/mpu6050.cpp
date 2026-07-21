@@ -1,8 +1,8 @@
 #include "targets.h"
 
-#if defined(HAS_GYRO)
-#include "mpu_mpu6050.h"
-#include "mpu_mpu6050_regs.h"
+#if defined(GYRO_SUPPORT)
+#include "mpu6050.h"
+#include "mpu6050_regs.h"
 //#include "MPU6050_6Axis_MotionApps612.h"
 #include "logging.h"
 #include "config.h"
@@ -13,11 +13,11 @@
 static uint8_t accScaleCode, gyroScaleCode;
 
 
-const char * MPUDev_MPU6050::GetMPUName() {
+const char * IMU_MPU6050::GetMPUName() {
     return "MPU6050";
 }
 
-static bool testConnection(MPU_Base* mpu) {
+static bool testConnection(IMU_Driver* mpu) {
     uint8_t id = 0;
     // Get Device ID
     bool ok = mpu->readRegister(MPU6050_RA_WHO_AM_I, &id, 1);
@@ -29,14 +29,11 @@ static bool testConnection(MPU_Base* mpu) {
     return ok && known_mpu6050_id;
 }
 
-bool MPUDev_MPU6050::initialize() {
-    MPU_Base::initialize();
+bool IMU_MPU6050::initialize() {
     Wire.setTimeOut(5);
     m_address = MPU6050_DEFAULT_ADDRESS;     // Defaults is MPU6050_ADDRESS_AD0_LOW (0x68)
    
     DBGLN("Detecting MPU6050 (Address 0x68)");
-    //MPU6050 mpu =  new MPU6050(m_address);
-    //I2Cdev::readTimeout = 1; // 1ms timeout instead of 1000ms (1s)
 
     bool found = false;
     for (int8_t i=0;i<5;i++) {
@@ -71,11 +68,11 @@ bool MPUDev_MPU6050::initialize() {
     if (!found) 
     {
         DBGLN("MPU6050 not found!");
-        //mpu = nullptr;
         return false;
     }
 
     gyroSampleRate = 1000;
+    period_us = (1000000 / gyroSampleRate);
 
     accScaleCode = MPU6050_ACCEL_FS_16; // Acceleation 16G
     accScaleG  = 16 / 32768.0;         //   multiply adc by this to get Gs
@@ -85,14 +82,6 @@ bool MPUDev_MPU6050::initialize() {
     gyroScaleDeg = 2000.0 / 32768.0;             //   multiply adc by this to get deg°/s
     gyroScaleRad = radians(gyroScaleDeg);        //   multiply adc by this to get rad°/s  
 
-    orientationIsWrong = true;
-    return true;
-}
-
-void MPUDev_MPU6050::start() {
-    DBGLN("MPU6050 Start");
-    MPU_Base::start();
-    
     // Reset
     writeRegister(MPU6050_RA_PWR_MGMT_1, 1 << MPU6050_PWR1_DEVICE_RESET_BIT); // Reset Device
     vTaskDelay(50 * portTICK_PERIOD_MS);
@@ -117,19 +106,17 @@ void MPUDev_MPU6050::start() {
     //writeRegister(MPU6050_RA_INT_PIN_CFG, 0x02);  // INT_PIN_CFG, I2C_BYPASS_EN
 
     //Set frequency filters
-    // MPU6050_DLPF_BW_188  = LPF (188Hz, 1khz sample rate, delay = 1.9ms)
-    writeRegister(MPU6050_RA_CONFIG, MPU6050_DLPF_BW_188 << MPU6050_CFG_DLPF_CFG_BIT);
+    // MPU6050_DLPF_BW_188  = LPF (42Hz, 1khz sample rate, delay = 1.9ms)
+    writeRegister(MPU6050_RA_CONFIG, MPU6050_DLPF_BW_42 << MPU6050_CFG_DLPF_CFG_BIT);
 
-    memcpy(&cal_accel_offets,config.GetAccelCalibration(),sizeof(rx_config_gyro_calibration_t));
-    memcpy(&cal_gyro_offsets,config.GetGyroCalibration(),sizeof(rx_config_gyro_calibration_t));
-    DBGLN("MPU6050 Acc Offs:  x=%d,y=%d,z=%d",cal_accel_offets.x, cal_accel_offets.y,cal_accel_offets.z);
-    DBGLN("MPU6050 Gyro Offs:  x=%d,y=%d,z=%d",cal_gyro_offsets.x, cal_gyro_offsets.y,cal_gyro_offsets.z);
-
-    setupOrientation();
-    DBGLN("MPU6050: Ready");
+    return true;
 }
 
-bool MPUDev_MPU6050::isDataReady() 
+void IMU_MPU6050::start() {
+    DBGLN("MPU6050 Start");
+}
+
+bool IMU_MPU6050::isDataReady() 
 {
     uint8_t status = 0;
     //bool readOk = I2Cdev::readByte(m_address, MPU6050_RA_INT_STATUS, &status, 0) == 1;
@@ -138,7 +125,7 @@ bool MPUDev_MPU6050::isDataReady()
     return readOk && ((status & (1<<MPU6050_INTERRUPT_DATA_RDY_BIT)) != 0);
 }
 
-bool MPUDev_MPU6050::rawRead(int16_t *ax, int16_t *ay, int16_t *az, int16_t *gx, int16_t *gy, int16_t *gz) 
+bool IMU_MPU6050::rawRead(int16_t *ax, int16_t *ay, int16_t *az, int16_t *gx, int16_t *gy, int16_t *gz) 
 {
     uint8_t buffer[14];
 

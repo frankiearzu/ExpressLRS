@@ -49,9 +49,9 @@ typedef enum
     GYRO_MODE_FUTURE2,
     GYRO_MODE_FUTURE3,
     GYRO_MODE_FUTURE4,
-    GYRO_MODE_FUTURE5,
+    GYRO_MODE_END,
     GYRO_MODE_LAST_ACTIVE = GYRO_MODE_HOVER,
-    GYRO_MODE_MAX = GYRO_MODE_FUTURE5
+    GYRO_MODE_MAX = GYRO_MODE_END
 } gyro_mode_t;
 
 /*
@@ -68,10 +68,10 @@ typedef enum {
 typedef enum {
     GYRO_PID_GROUP_RATE,
     GYRO_PID_GROUP_ANGLE,
-    GYRO_PID_GROUP_FUTURE1,
-    GYRO_PID_GROUP_FUTURE2,
-    GYRO_PID_GROUP_LAST_ACTIVE = GYRO_PID_GROUP_ANGLE,
-    GYRO_PID_GROUP_MAX = GYRO_PID_GROUP_FUTURE2
+    GYRO_PID_GROUP_MADWICK,
+    GYRO_PID_GROUP_END,
+    GYRO_PID_GROUP_LAST_ACTIVE = GYRO_PID_GROUP_MADWICK,
+    GYRO_PID_GROUP_MAX = GYRO_PID_GROUP_END
 } gyro_pidgroup_t;
 
 
@@ -221,10 +221,7 @@ class Quaternion {
         float z;
         
         Quaternion() {
-            w = 1.0f;
-            x = 0.0f;
-            y = 0.0f;
-            z = 0.0f;
+            reset();
         }
         
         Quaternion(float nw, float nx, float ny, float nz) {
@@ -232,6 +229,13 @@ class Quaternion {
             x = nx;
             y = ny;
             z = nz;
+        }
+
+        void reset() {
+            w = 1.0f;
+            x = 0.0f;
+            y = 0.0f;
+            z = 0.0f;
         }
 };
 

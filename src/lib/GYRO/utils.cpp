@@ -1,17 +1,12 @@
 #include "targets.h"
 
-#if defined(HAS_GYRO)
+#if defined(GYRO_SUPPORT)
 #include "config.h"
-#include "mixer.h"
+#include "utils.h"
 #include "gyro.h"
 #include "logging.h"
 #include "crsf_protocol.h"
 
-bool mixer_initialize()
-{
-    bool valid = true;
-    return valid;
-}
 
 /**
  *  Apply a correction to a servo PWM value
@@ -37,11 +32,10 @@ float crsf_command_to_float(uint16_t command)
 /**
  * Convert a channel µs value to a float command
  *
- * This takes into account subtrim and max throws.
+ * This takes into account subtrim and max gyro throws.
  */
 float us_command_to_float(uint8_t ch, uint16_t us)
 {
-    // TODO: inverted matters?
     const rx_config_pwm_limits_t *limits = config.GetPwmChannelLimits(ch);
     const uint16_t mid = limits->val.mid;
     return us <= mid
@@ -52,7 +46,7 @@ float us_command_to_float(uint8_t ch, uint16_t us)
 /**
  * Convert +-1.0 float into µs for an output channel
  *
- * This takes into account subtrim and max throws.
+ * This takes into account subtrim and max gyro throws.
  */
 uint16_t float_to_us(uint8_t ch, float value)
 {

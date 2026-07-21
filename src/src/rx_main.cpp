@@ -41,7 +41,7 @@
 
 #include <LittleFS.h>
 
-#ifdef HAS_GYRO
+#ifdef GYRO_SUPPORT
 #include "devGyro.h"
 #include "gyro.h"
 #endif
@@ -92,7 +92,8 @@ device_affinity_t ui_devices[] = {
   {&Button_device, 0},
   {&AnalogVbat_device, 0},
   {&ServoOut_device, 1},
-#ifdef HAS_GYRO
+#ifdef GYRO_SUPPORT
+  // Run it on Core1,  If we run it on Core0, can't get more than 125Hz refresh rate
   {&Gyro_device, 1},
 #else
   // Don't activate the Baro when Gyro.. both use I2C and currently

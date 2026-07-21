@@ -7,7 +7,7 @@
 #include "crsf_protocol.h"
 #include "logging.h"
 #include "rxtx_intf.h"
-#if defined(HAS_GYRO)
+#if defined(GYRO_SUPPORT)
 #include "gyro.h"
 #endif
 
@@ -148,8 +148,8 @@ static void servosFailsafe()
 
 static void servoCalcAllChannels(servoWrite_fn write, bool failSafe=false)
 {
-    #if defined(HAS_GYRO)
-    if (OPT_HAS_GYRO_HW) 
+    #if defined(GYRO_SUPPORT)
+    if (OPT_HAS_GYRO) 
     {
         gyro.mixerInput();
     }
@@ -179,8 +179,8 @@ static void servoCalcAllChannels(servoWrite_fn write, bool failSafe=false)
             us = CRSF_to_US(crsfVal);
         }
         
-        #if defined(HAS_GYRO)
-        if (!failSafe && OPT_HAS_GYRO_HW) {
+        #if defined(GYRO_SUPPORT)
+        if (!failSafe && OPT_HAS_GYRO) {
             // Mix in gyro adjustments before handling inversion
             gyro.mixerOutput(ch, &us);
         }

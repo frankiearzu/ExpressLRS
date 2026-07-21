@@ -5,7 +5,7 @@
 #include "options.h"
 #include "common.h"
 
-#if defined(HAS_GYRO)
+#if defined(GYRO_SUPPORT)
 #include "gyro_types.h"
 #endif
 
@@ -262,7 +262,7 @@ typedef struct __attribute__((packed)) {
     uint8_t     sourceSysId;
 
 
-#if defined(HAS_GYRO)
+#if defined(GYRO_SUPPORT)
     rx_config_gyro_t gyro;
 #endif
 } rx_config_t;
@@ -289,7 +289,7 @@ public:
     bool     IsModified() const { return m_modified != 0; }
     const rx_config_pwm_t *GetPwmChannel(uint8_t ch) const { return &m_config.pwmChannels[ch]; }
 
-#if defined(HAS_GYRO)
+#if defined(GYRO_SUPPORT)
     const bool GetPwmChannelInverted(uint8_t ch) const { return m_config.pwmChannels[ch].val.inverted; }
     const rx_config_pwm_limits_t *GetPwmChannelLimits(uint8_t ch) const { return &m_config.gyro.pwmLimits[ch]; }
 
@@ -333,7 +333,7 @@ public:
     void SetPwmChannel(uint8_t ch, uint16_t failsafe, uint8_t inputCh, bool inverted, uint8_t mode, uint8_t stretched);
     void SetPwmChannelRaw(uint8_t ch, uint32_t raw);
 
-    #if defined(HAS_GYRO)
+    #if defined(GYRO_SUPPORT)
     void SetGyroDefaults(bool commit);
 
     void SetGyroConfigVersion(uint8_t value);
@@ -375,7 +375,7 @@ private:
     void UpgradeEepromV7V8(uint8_t ver);
     void UpgradeEepromV9V10(uint8_t ver);
 
-#if defined(HAS_GYRO)
+#if defined(GYRO_SUPPORT)
     void GyroCheckUpgrade();
 	void debugGyroConfiguration();
 #endif
