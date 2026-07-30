@@ -1,6 +1,6 @@
 #include "imu_driver.h"
 
-#include <wire.h>
+#include <Wire.h>
 
 #include "SPI.h"
 extern SPIClass _spi;
@@ -25,7 +25,7 @@ bool IMU_Driver::interruptReceived() {
 
 void IMU_Driver::setInterruptReceived(bool val)
 {
-   irq_received = val; 
+   irq_received = val;
 }
 
 void IMU_Driver::writeRegisterBits(uint8_t registerID, uint8_t mask, uint8_t value) {
