@@ -1,6 +1,6 @@
 #include "imu_driver.h"
 
-#include <wire.h>
+#include <Wire.h>
 
 #include "SPI.h"
 extern SPIClass _spi;
@@ -98,7 +98,7 @@ void IMU_Driver_SPI::writeRegister(uint8_t reg, uint8_t value) {
   _spi.beginTransaction(_spiSettings);
   digitalWrite(cs_pin, LOW);
 
-  _spi.transfer(reg);         // 写 = 最高位 0
+  _spi.transfer(reg);
   _spi.transfer(value);
 
   digitalWrite(cs_pin, HIGH);
