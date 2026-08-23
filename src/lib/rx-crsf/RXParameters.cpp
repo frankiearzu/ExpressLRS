@@ -47,7 +47,7 @@ static const char *gyroStatus[] = {"Off","!Detected","!Orient.","!Stick cal","Ru
 extern const char* mpuOrientationNames[];
 
 // Must match mixer.h: gyro_output_channel_function_t
-static char gyroOutputChannelModes[] = "None;Aileron;Elevator;Rudder;Elevon;Elevon_R;VTail;VTail_R;Mode;Gain";
+static char gyroOutputChannelModes[] = "None;Aileron;Elevator;Rudder;Elevon;Elevon_Inv;VTail;VTail_Inv;Mode;Gain";
 // Must match gyro.h gyro_mode_t
 static const char switch_gyroModes[] = "Off;Rate;Envelope;Auto-Level;Launch;Hover";
 static const char switch_gyroPositionCounts[] = "2;3;4;5;6";
@@ -378,7 +378,7 @@ void RXEndpoint::luaparamGyroOutputCh_Select(propertiesCommon *item, uint8_t arg
         if (gyroCh->val.output_mode == FN_GYRO_MODE && i != arg - 1) includeMode = false;
         if (gyroCh->val.output_mode == FN_GYRO_GAIN && i != arg - 1) includeGain = false;
     }
-    char *pos = strstr(gyroOutputChannelModes, "VTail_R;");
+    char *pos = strstr(gyroOutputChannelModes, "VTail_Inv;");
     pos += 10;
     *pos = 0;
     if (includeMode) strcat(pos, "Mode;");
