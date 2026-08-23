@@ -1613,13 +1613,13 @@ void RXEndpoint::registerParameters()
                 luaGyroMainFolder.common.id
             );
 
+            registerParameter(&luaGyroCalibrationFolder, nullptr, luaGyroMainFolder.common.id);
             registerParameter(&luaGyroModelFolder, nullptr, luaGyroMainFolder.common.id);
             registerParameter(&luaGyroModesFolder, nullptr, luaGyroModelFolder.common.id);
             registerParameter(&luaGyroOutputFolder, nullptr, luaGyroModelFolder.common.id);
             registerParameter(&luaGyroQuickSetupFolder, nullptr, luaGyroModelFolder.common.id);
             registerParameter(&luaGyroSettingsFolder, nullptr, luaGyroMainFolder.common.id);
             registerParameter(&luaGyroFModeFolder, nullptr, luaGyroSettingsFolder.common.id);
-            registerParameter(&luaGyroCalibrationFolder, nullptr, luaGyroSettingsFolder.common.id);
             registerParameter(&luaGyroRxOrientationFolder, nullptr, luaGyroCalibrationFolder.common.id);
             registerParameter(&luaGyroPIDFolder, nullptr, luaGyroSettingsFolder.common.id);
 
