@@ -1713,7 +1713,7 @@ void RXEndpoint::registerParameters()
             registerParameter(&luaGyroCalibration, [this](propertiesCommon *item, uint8_t arg) { luaparamGyroCalibration(item, arg); }, luaGyroCalibrationFolder.common.id);
 
             // ----- Gyro -> Model -> Stick Calibration
-            registerParameter(&luaGyroStickCal, [this](propertiesCommon *item, uint8_t arg) { luaparamGyroStickCal(item, arg); }, luaGyroCalibrationFolder.common.id);
+            registerParameter(&luaGyroStickCal, [this](propertiesCommon *item, uint8_t arg) { luaparamGyroStickCal(item, arg); }, luaGyroModelFolder.common.id);
 
             // ----- Gyro -> Model -> Quick Setup
             // Wing Type
