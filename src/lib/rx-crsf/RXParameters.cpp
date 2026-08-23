@@ -55,7 +55,7 @@ static constexpr uint8_t gyroPositionCounts[] = {2, 3, 4, 5, 6};
 static const char fmodes[] = "Rate;Envelope;Auto-Level;Launch;Hover";
 
 // Must match gyro_pidgroup_t
-static const char gyroPidGroup[] = "Rate;Level;AHRS";
+static const char gyroPidGroup[] = "Rate (%);Level (%);AHRS (x0.1)";
 // Must match gyro_axis_t
 static const char gyroAxis[] = "Roll;Pitch;Yaw";
 
@@ -425,7 +425,7 @@ static void luaparamGyroOutputCh_Inverted(propertiesCommon *item, uint8_t arg)
 
 //------------  Gyro Gains Settings -------------
 static selectionParameter luaGyroPID_Select_Group = {
-    {"Mode ->", CRSF_TEXT_SELECTION},
+    {"Mode group ->", CRSF_TEXT_SELECTION},
     0, // value
     gyroPidGroup,
     STR_EMPTYSPACE
