@@ -55,7 +55,7 @@ static constexpr uint8_t gyroPositionCounts[] = {2, 3, 4, 5, 6};
 static const char fmodes[] = "Rate;Envelope;Auto-Level;Launch;Hover";
 
 // Must match gyro_pidgroup_t
-static const char gyroPidGroup[] = "Rate (%);Level (%);AHRS (x0.1)";
+static const char gyroPidGroup[] = "Rate;Level;AHRS";
 // Must match gyro_axis_t
 static const char gyroAxis[] = "Roll;Pitch;Yaw";
 
@@ -447,7 +447,7 @@ static int8Parameter luaGyroPID_RateP = {
             100         // max
         }
     },
-    STR_EMPTYSPACE
+    " (x0.01)"
 };
 
 static int8Parameter luaGyroPID_RateI = {
@@ -459,7 +459,7 @@ static int8Parameter luaGyroPID_RateI = {
             100         // max
         }
     },
-    STR_EMPTYSPACE
+    " (x0.01)"
 };
 
 static int8Parameter luaGyroPID_RateD = {
@@ -471,7 +471,31 @@ static int8Parameter luaGyroPID_RateD = {
             100         // max
         }
     },
-    STR_EMPTYSPACE
+    " (x0.01)"
+};
+
+static int8Parameter luaGyroAHRS_P = {
+    {"P gain", CRSF_UINT8},
+    {
+        {
+            (uint8_t)1, // value
+            0,          // min
+            100         // max
+        }
+    },
+    " (x0.1)"
+};
+
+static int8Parameter luaGyroAHRS_I = {
+    {"I gain", CRSF_UINT8},
+    {
+        {
+            (uint8_t)1, // value
+            0,          // min
+            100         // max
+        }
+    },
+    " (x0.1)"
 };
 
 static int8Parameter luaGyroAHRS_LPF = {
@@ -509,6 +533,24 @@ static void luaparamGyroPID_RateD(propertiesCommon *item, uint8_t arg)
     const gyro_pidgroup_t group = (gyro_pidgroup_t) luaGyroPID_Select_Group.value;
     const gyro_axis_t axis = (gyro_axis_t) luaGyroPID_Select_Axis.value;
     gyroConfig->SetGyroPIDRate(group, axis, GYRO_RATE_VARIABLE_D, arg);
+    gyro.reloadConfig();
+}
+
+static void luaparamGyroAHRS_P(propertiesCommon *item, uint8_t arg)
+{
+    const gyro_pidgroup_t group = (gyro_pidgroup_t) luaGyroPID_Select_Group.value;
+    const gyro_axis_t axis = (gyro_axis_t) luaGyroPID_Select_Axis.value;
+    gyroConfig->SetGyroPIDRate(group, axis, GYRO_RATE_VARIABLE_P, arg);
+    gyroConfig->ValidateMadwick();
+    gyro.reloadConfig();
+}
+
+static void luaparamGyroAHRS_I(propertiesCommon *item, uint8_t arg)
+{
+    const gyro_pidgroup_t group = (gyro_pidgroup_t) luaGyroPID_Select_Group.value;
+    const gyro_axis_t axis = (gyro_axis_t) luaGyroPID_Select_Axis.value;
+    gyroConfig->SetGyroPIDRate(group, axis, GYRO_RATE_VARIABLE_I, arg);
+    gyroConfig->ValidateMadwick();
     gyro.reloadConfig();
 }
 
@@ -1698,6 +1740,9 @@ void RXEndpoint::registerParameters()
             registerParameter(&luaGyroPID_RateP, &luaparamGyroPID_RateP, luaGyroPIDFolder.common.id);
             registerParameter(&luaGyroPID_RateI, &luaparamGyroPID_RateI, luaGyroPIDFolder.common.id);
             registerParameter(&luaGyroPID_RateD, &luaparamGyroPID_RateD, luaGyroPIDFolder.common.id);
+
+            registerParameter(&luaGyroAHRS_P, &luaparamGyroAHRS_P, luaGyroPIDFolder.common.id);
+            registerParameter(&luaGyroAHRS_I, &luaparamGyroAHRS_I, luaGyroPIDFolder.common.id);
             registerParameter(&luaGyroAHRS_LPF, &luaparamGyroAHRS_LPF, luaGyroPIDFolder.common.id);
 
             // ----- Gyro -> Settings -> Calibration -> RxOrientation
@@ -1928,18 +1973,24 @@ void RXEndpoint::updateParameters()
         {
             axis = GYRO_AXIS_ROLL; // 0
         }
-        LUA_FIELD_VISIBLE(luaGyroPID_Select_Axis, group != GYRO_PID_GROUP_MADGWICK);
         const rx_config_gyro_PID_t *gyroPIDs = gyroConfig->GetGyroPID(group, axis);
-        setUint8Value(&luaGyroPID_RateP, gyroPIDs->val.p);
-        setUint8Value(&luaGyroPID_RateI, gyroPIDs->val.i);
-        // LPF cut-off freqency replaces D gain with Group MADGWICK
-        LUA_FIELD_VISIBLE(luaGyroAHRS_LPF, group == GYRO_PID_GROUP_MADGWICK);
+        // Group MADGWICK: LPF cut-off frequency replaces D gain, and units are different
+        LUA_FIELD_VISIBLE(luaGyroPID_Select_Axis, group != GYRO_PID_GROUP_MADGWICK);
+        LUA_FIELD_VISIBLE(luaGyroPID_RateP, group != GYRO_PID_GROUP_MADGWICK);
+        LUA_FIELD_VISIBLE(luaGyroPID_RateI, group != GYRO_PID_GROUP_MADGWICK);
         LUA_FIELD_VISIBLE(luaGyroPID_RateD, group != GYRO_PID_GROUP_MADGWICK);
-        if (group == GYRO_PID_GROUP_MADGWICK)
+        LUA_FIELD_VISIBLE(luaGyroAHRS_P, group == GYRO_PID_GROUP_MADGWICK);
+        LUA_FIELD_VISIBLE(luaGyroAHRS_I, group == GYRO_PID_GROUP_MADGWICK);
+        LUA_FIELD_VISIBLE(luaGyroAHRS_LPF, group == GYRO_PID_GROUP_MADGWICK);
+        if (group != GYRO_PID_GROUP_MADGWICK)
         {
-            setUint8Value(&luaGyroAHRS_LPF, gyroPIDs->val.d);
-        } else {
+            setUint8Value(&luaGyroPID_RateP, gyroPIDs->val.p);
+            setUint8Value(&luaGyroPID_RateI, gyroPIDs->val.i);
             setUint8Value(&luaGyroPID_RateD, gyroPIDs->val.d);
+        } else {
+            setUint8Value(&luaGyroAHRS_P, gyroPIDs->val.p);
+            setUint8Value(&luaGyroAHRS_I, gyroPIDs->val.i);
+            setUint8Value(&luaGyroAHRS_LPF, gyroPIDs->val.d);
         }
 
         setTextSelectionValue(&luaGyroOrientationH, gyroConfig->GetGyroOrientationH());
