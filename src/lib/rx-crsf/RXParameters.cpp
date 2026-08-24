@@ -447,7 +447,8 @@ static int8Parameter luaGyroPID_RateP = {
             100         // max
         }
     },
-    STR_EMPTYSPACE};
+    STR_EMPTYSPACE
+};
 
 static int8Parameter luaGyroPID_RateI = {
     {"I gain", CRSF_UINT8},
@@ -458,7 +459,8 @@ static int8Parameter luaGyroPID_RateI = {
             100         // max
         }
     },
-    STR_EMPTYSPACE};
+    STR_EMPTYSPACE
+};
 
 static int8Parameter luaGyroPID_RateD = {
     {"D gain", CRSF_UINT8},
@@ -469,7 +471,20 @@ static int8Parameter luaGyroPID_RateD = {
             100         // max
         }
     },
-    STR_EMPTYSPACE};
+    STR_EMPTYSPACE
+};
+
+static int8Parameter luaGyroAHRS_LPF = {
+    {"LPF freq.", CRSF_UINT8},
+    {
+        {
+            (uint8_t)1, // value
+            0,          // min
+            100         // max
+        }
+    },
+    "Hz"
+};
 
 static void luaparamGyroPID_RateP(propertiesCommon *item, uint8_t arg)
 {
@@ -490,6 +505,14 @@ static void luaparamGyroPID_RateI(propertiesCommon *item, uint8_t arg)
 }
 
 static void luaparamGyroPID_RateD(propertiesCommon *item, uint8_t arg)
+{
+    const gyro_pidgroup_t group = (gyro_pidgroup_t) luaGyroPID_Select_Group.value;
+    const gyro_axis_t axis = (gyro_axis_t) luaGyroPID_Select_Axis.value;
+    gyroConfig->SetGyroPIDRate(group, axis, GYRO_RATE_VARIABLE_D, arg);
+    gyro.reloadConfig();
+}
+
+static void luaparamGyroAHRS_LPF(propertiesCommon *item, uint8_t arg)
 {
     const gyro_pidgroup_t group = (gyro_pidgroup_t) luaGyroPID_Select_Group.value;
     const gyro_axis_t axis = (gyro_axis_t) luaGyroPID_Select_Axis.value;
@@ -1675,6 +1698,7 @@ void RXEndpoint::registerParameters()
             registerParameter(&luaGyroPID_RateP, &luaparamGyroPID_RateP, luaGyroPIDFolder.common.id);
             registerParameter(&luaGyroPID_RateI, &luaparamGyroPID_RateI, luaGyroPIDFolder.common.id);
             registerParameter(&luaGyroPID_RateD, &luaparamGyroPID_RateD, luaGyroPIDFolder.common.id);
+            registerParameter(&luaGyroAHRS_LPF, &luaparamGyroAHRS_LPF, luaGyroPIDFolder.common.id);
 
             // ----- Gyro -> Settings -> Calibration -> RxOrientation
             registerParameter(&luaGyroAutoOrientation,
@@ -1908,7 +1932,15 @@ void RXEndpoint::updateParameters()
         const rx_config_gyro_PID_t *gyroPIDs = gyroConfig->GetGyroPID(group, axis);
         setUint8Value(&luaGyroPID_RateP, gyroPIDs->val.p);
         setUint8Value(&luaGyroPID_RateI, gyroPIDs->val.i);
-        setUint8Value(&luaGyroPID_RateD, gyroPIDs->val.d);
+        // LPF cut-off freqency replaces D gain with Group MADGWICK
+        LUA_FIELD_VISIBLE(luaGyroAHRS_LPF, group == GYRO_PID_GROUP_MADGWICK);
+        LUA_FIELD_VISIBLE(luaGyroPID_RateD, group != GYRO_PID_GROUP_MADGWICK);
+        if (group == GYRO_PID_GROUP_MADGWICK)
+        {
+            setUint8Value(&luaGyroAHRS_LPF, gyroPIDs->val.d);
+        } else {
+            setUint8Value(&luaGyroPID_RateD, gyroPIDs->val.d);
+        }
 
         setTextSelectionValue(&luaGyroOrientationH, gyroConfig->GetGyroOrientationH());
         setTextSelectionValue(&luaGyroOrientationV, gyroConfig->GetGyroOrientationV());
