@@ -41,7 +41,7 @@ static char pwmModes[] = "50Hz;60Hz;100Hz;160Hz;333Hz;400Hz;10kHzDuty;On/Off;DSh
 #if defined(PLATFORM_ESP32)
 static char gyroOffOn[] = "Off;On"; // Off-ON
 //  needs to match gyro_status_t
-static const char *gyroStatus[] = {"Off","!Detected","!Orient.","!Stick cal","Running"};
+static const char *gyroStatus[] = {"Off","!Detected","!Orient.","!Ch. cal.","Running"};
 
 // Orientation Names in MPU
 extern const char* mpuOrientationNames[];
@@ -789,7 +789,7 @@ void RXEndpoint::luaparamGyroOrientationCal(propertiesCommon *item, uint8_t arg)
 
 //--------------------- RX Stick Limit/subtrim Calibration -----------------
 static struct commandParameter luaGyroStickCal = {
-    {"Stick Calibration", CRSF_COMMAND},
+    {"Channel Calibration", CRSF_COMMAND},
     lcsIdle, // step
     STR_EMPTYSPACE
 };
@@ -806,7 +806,7 @@ void RXEndpoint::luaparamGyroStickCal(propertiesCommon *item, uint8_t arg)
     {
         // Step 1: Horizontal
         calStep = 0;
-        DBGLN("Gyro(): Calibrating Sticks");
+        DBGLN("Gyro(): Calibrating Channels");
         newStep = lcsAskConfirm;
         msg = "Center sticks";
     }
@@ -817,13 +817,13 @@ void RXEndpoint::luaparamGyroStickCal(propertiesCommon *item, uint8_t arg)
         newStep = lcsExecuting;
         if (calStep == 0)
         {
-            msg = "Sticks center";
+            msg = "Channels center";
             calStep++;
             gyro.StickCenterCalibration();
         }
         else if (calStep == 1)
         {
-            msg = "Sticks range";
+            msg = "Channel endpoints";
             calStep++;
         }
         else if (calStep == 2)
