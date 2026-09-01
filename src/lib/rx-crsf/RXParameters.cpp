@@ -205,8 +205,18 @@ static stringParameter luaGyroIMUStatus = {
     "" // value
 };
 
-static stringParameter luaGyro_Warning = {
-    {"WARNING: Auto-Level as Panic is Experimental", CRSF_INFO},
+static stringParameter luaGyro_WarningLine1 = {
+    {"! ! ! Auto-Level as Panic", CRSF_INFO},
+    STR_EMPTYSPACE
+};
+
+static stringParameter luaGyro_WarningLine2 = {
+    {"     is experimental. Use", CRSF_INFO},
+    STR_EMPTYSPACE
+};
+
+static stringParameter luaGyro_WarningLine3 = {
+    {"     with caution.", CRSF_INFO},
     STR_EMPTYSPACE
 };
 
@@ -1667,7 +1677,9 @@ void RXEndpoint::registerParameters()
 
             registerParameter(&luaGyroStatus, nullptr, luaGyroMainFolder.common.id);
             registerParameter(&luaGyroIMUStatus, nullptr, luaGyroMainFolder.common.id);
-            registerParameter(&luaGyro_Warning, nullptr, luaGyroMainFolder.common.id);
+            registerParameter(&luaGyro_WarningLine1, nullptr, luaGyroMainFolder.common.id);
+            registerParameter(&luaGyro_WarningLine2, nullptr, luaGyroMainFolder.common.id);
+            registerParameter(&luaGyro_WarningLine3, nullptr, luaGyroMainFolder.common.id);
             
             registerParameter(&luaGyroMainRefresh,
                 [this](propertiesCommon *item, uint8_t arg) {
