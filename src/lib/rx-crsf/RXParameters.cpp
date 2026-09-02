@@ -228,7 +228,7 @@ static selectionParameter luaGyroFMode_GainFactor = {
 };
 
 static struct commandParameter luaGyroMainRefresh = {
-    {"Refresh Page", CRSF_COMMAND},
+    {"Refresh Status", CRSF_COMMAND},
     lcsIdle, // step
     STR_EMPTYSPACE
 };
@@ -1677,9 +1677,6 @@ void RXEndpoint::registerParameters()
 
             registerParameter(&luaGyroStatus, nullptr, luaGyroMainFolder.common.id);
             registerParameter(&luaGyroIMUStatus, nullptr, luaGyroMainFolder.common.id);
-            registerParameter(&luaGyro_WarningLine1, nullptr, luaGyroMainFolder.common.id);
-            registerParameter(&luaGyro_WarningLine2, nullptr, luaGyroMainFolder.common.id);
-            registerParameter(&luaGyro_WarningLine3, nullptr, luaGyroMainFolder.common.id);
             
             registerParameter(&luaGyroMainRefresh,
                 [this](propertiesCommon *item, uint8_t arg) {
@@ -1689,6 +1686,10 @@ void RXEndpoint::registerParameters()
                 },
                 luaGyroMainFolder.common.id
             );
+
+            registerParameter(&luaGyro_WarningLine1, nullptr, luaGyroMainFolder.common.id);
+            registerParameter(&luaGyro_WarningLine2, nullptr, luaGyroMainFolder.common.id);
+            registerParameter(&luaGyro_WarningLine3, nullptr, luaGyroMainFolder.common.id);
 
             registerParameter(&luaGyroCalibrationFolder, nullptr, luaGyroMainFolder.common.id);
             registerParameter(&luaGyroModelFolder, nullptr, luaGyroMainFolder.common.id);
