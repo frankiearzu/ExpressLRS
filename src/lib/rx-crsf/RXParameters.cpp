@@ -238,7 +238,7 @@ static folderParameter luaGyroMainFolder = {
 };
 
 static folderParameter luaGyroModelFolder = {
-    {"Main Setup", CRSF_FOLDER},
+    {"Channel Setup", CRSF_FOLDER},
 };
 
 static folderParameter luaGyroModesFolder = {
@@ -266,7 +266,7 @@ static folderParameter luaGyroQuickSetupFolder = {
 };
 
 static folderParameter luaGyroCalibrationFolder = {
-    {"Calibration", CRSF_FOLDER},
+    {"IMU Calibration", CRSF_FOLDER},
 };
 
 static folderParameter luaGyroRxOrientationFolder = {
