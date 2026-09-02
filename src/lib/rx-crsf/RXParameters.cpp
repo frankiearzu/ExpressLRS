@@ -220,6 +220,31 @@ static stringParameter luaGyro_WarningLine3 = {
     STR_EMPTYSPACE
 };
 
+static stringParameter luaGyro_QuickSetupWarningLine1 = {
+    {"! ! ! This utility resets", CRSF_INFO},
+    STR_EMPTYSPACE
+};
+
+static stringParameter luaGyro_QuickSetupWarningLine2 = {
+    {"     channel functions,", CRSF_INFO},
+    STR_EMPTYSPACE
+};
+
+static stringParameter luaGyro_QuickSetupWarningLine3 = {
+    {"     gyro modes tuning,", CRSF_INFO},
+    STR_EMPTYSPACE
+};
+
+static stringParameter luaGyro_QuickSetupWarningLine4 = {
+    {"     and custom PIDs.", CRSF_INFO},
+    STR_EMPTYSPACE
+};
+
+static stringParameter luaGyro_QuickSetupWarningLine5 = {
+    {"     And clears all calib.", CRSF_INFO},
+    STR_EMPTYSPACE
+};
+
 static selectionParameter luaGyroFMode_GainFactor = {
     {"Gain Mult", CRSF_TEXT_SELECTION},
     0, // value
@@ -621,11 +646,11 @@ void RXEndpoint::luaparamGyroQuickPreset(propertiesCommon *item, uint8_t arg)
         newStep = lcsAskConfirm;
         if (luaGyroQuickSetup_wingType_Select.value == 0)
         {
-            msg = "Clear model setup?";
+            msg = "Reset channel setup?";
         }
         else
         {
-            sprintf(temp, "Reset Model to W=%s T=%s?", wingTypeName[luaGyroQuickSetup_wingType_Select.value], tailTypeName[luaGyroQuickSetup_tailType_Select.value]);
+            sprintf(temp, "Reset channels to W=%s T=%s?", wingTypeName[luaGyroQuickSetup_wingType_Select.value], tailTypeName[luaGyroQuickSetup_tailType_Select.value]);
             msg = temp;
         }
     }
@@ -1798,6 +1823,12 @@ void RXEndpoint::registerParameters()
             registerParameter(&luaGyroStickCal, [this](propertiesCommon *item, uint8_t arg) { luaparamGyroStickCal(item, arg); }, luaGyroModelFolder.common.id);
 
             // ----- Gyro -> Model -> Quick Setup
+            registerParameter(&luaGyro_QuickSetupWarningLine1, nullptr, luaGyroQuickSetupFolder.common.id);
+            registerParameter(&luaGyro_QuickSetupWarningLine2, nullptr, luaGyroQuickSetupFolder.common.id);
+            registerParameter(&luaGyro_QuickSetupWarningLine3, nullptr, luaGyroQuickSetupFolder.common.id);
+            registerParameter(&luaGyro_QuickSetupWarningLine4, nullptr, luaGyroQuickSetupFolder.common.id);
+            registerParameter(&luaGyro_QuickSetupWarningLine5, nullptr, luaGyroQuickSetupFolder.common.id);
+
             // Wing Type
             registerParameter(&luaGyroQuickSetup_wingType_Select, [this](propertiesCommon *item, uint8_t arg) { setTextSelectionValue(&luaGyroQuickSetup_wingType_Select, arg); }, luaGyroQuickSetupFolder.common.id);
             // Tail Type
