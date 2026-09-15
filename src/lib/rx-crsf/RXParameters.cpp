@@ -236,12 +236,12 @@ static stringParameter luaGyro_QuickSetupWarningLine3 = {
 };
 
 static stringParameter luaGyro_QuickSetupWarningLine4 = {
-    {"     and custom PIDs.", CRSF_INFO},
+    {"     custom PIDs, and", CRSF_INFO},
     STR_EMPTYSPACE
 };
 
 static stringParameter luaGyro_QuickSetupWarningLine5 = {
-    {"     And clears all calib.", CRSF_INFO},
+    {"     clears all calib data.", CRSF_INFO},
     STR_EMPTYSPACE
 };
 
